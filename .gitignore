@@ -1,0 +1,13 @@
+gitignore
+
+#py cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+#model pth
+*.pth
+
+#data 
+celeba_hq_256/
