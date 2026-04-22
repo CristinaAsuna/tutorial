@@ -31,32 +31,32 @@ CLIP 的核心不是“生成”，而是：
 
 假设一个 batch 里有 (B) 对图文：
 
-[
+$$
 (image_1, text_1), (image_2, text_2), \dots, (image_B, text_B)
-]
+$$
 
 CLIP 会得到：
 
 * 图像特征：
-  [
+  $$
   I \in \mathbb{R}^{B \times D}
-  ]
+  $$
 * 文本特征：
-  [
+  $$
   T \in \mathbb{R}^{B \times D}
-  ]
+  $$
 
 然后做相似度矩阵：
 
-[
+$$
 S = I T^\top
-]
+$$
 
 shape 是：
 
-[
+$$
 [B, D] \times [D, B] = [B, B]
-]
+$$
 
 其中：
 
@@ -109,33 +109,33 @@ CLIP 训练时通常会：
 
 公式上可以写成：
 
-[
+$$
 \hat I = \frac{I}{|I|}, \qquad \hat T = \frac{T}{|T|}
-]
+$$
 
 相似度：
 
-[
+$$
 \text{logits} = \tau \hat I \hat T^\top
-]
+$$
 
 其中 (\tau) 是温度缩放。
 
 然后标签是：
 
-[
+$$
 y = [0,1,2,\dots,B-1]
-]
+$$
 
 因为 batch 中第 (i) 张图应该匹配第 (i) 条文本。
 
 损失：
 
-[
+$$
 \mathcal L = \frac{1}{2}\Big(
 \text{CE}(\text{logits}, y) + \text{CE}(\text{logits}^\top, y)
 \Big)
-]
+$$
 
 这就是 CLIP 的核心。
 
@@ -157,9 +157,9 @@ y = [0,1,2,\dots,B-1]
 
 文本输入一般是 token ids：
 
-[
+$$
 text \in \mathbb{R}^{[B,L]}
-]
+$$
 
 其中：
 
@@ -168,9 +168,9 @@ text \in \mathbb{R}^{[B,L]}
 
 比如：
 
-[
+$$
 [B, 77]
-]
+$$
 
 这很像 CLIP text encoder 里的固定长度文本。
 
@@ -318,45 +318,45 @@ class TextEncoder(nn.Module):
 
 输入：
 
-[
+$$
 text_ids: [32, 77]
-]
+$$
 
 ### token embedding
 
-[
+$$
 [32,77] \to [32,77,512]
-]
+$$
 
 ### 加 position embedding
 
-[
+$$
 [32,77,512] \to [32,77,512]
-]
+$$
 
 ### 过多层 transformer
 
-[
+$$
 [32,77,512] \to [32,77,512]
-]
+$$
 
 ### 池化（这里教学版用 mean）
 
-[
+$$
 [32,77,512] \to [32,512]
-]
+$$
 
 ### projection
 
-[
+$$
 [32,512] \to [32,512]
-]
+$$
 
 最终得到：
 
-[
+$$
 text_features \in \mathbb{R}^{[32,512]}
-]
+$$
 
 ---
 
@@ -459,68 +459,68 @@ class VisionEncoder(nn.Module):
 假设：
 
 * 输入图像：
-  [
+$$
   [32,3,224,224]
-  ]
+$$
 * patch size = 16
 * width = 768
 * embed_dim = 512
 
 ### patch embedding
 
-[
+$$
 [32,3,224,224]
 \to
 [32,768,14,14]
 \to
 [32,196,768]
-]
+$$
 
 ### 加 cls token
 
-[
+$$
 [32,196,768]
 \to
 [32,197,768]
-]
+$$
 
 ### 加 position embedding
 
-[
+$$
 [32,197,768]
 \to
 [32,197,768]
-]
+$$
 
 ### transformer 多层
 
-[
+$$
 [32,197,768]
 \to
 [32,197,768]
-]
+$$
 
 ### 取 cls token
 
-[
+$$
 [32,197,768]
 \to
 [32,768]
-]
+$$
 
 ### projection
 
-[
+$$
 [32,768]
 \to
 [32,512]
-]
+$$
 
 最终：
 
-[
+$$
 image_features \in \mathbb{R}^{[32,512]}
-]
+$$
 
 ---
 
@@ -590,13 +590,13 @@ class CLIP(nn.Module):
 输入：
 
 * 图像：
-  [
+  $$
   images: [32,3,224,224]
-  ]
+  $$
 * 文本：
-  [
+  $$
   text_ids: [32,77]
-  ]
+  $$
 
 ---
 
@@ -608,9 +608,9 @@ image_features = self.image_encoder(images)
 
 得到：
 
-[
+$$
 [32,512]
-]
+$$
 
 ---
 
@@ -622,9 +622,9 @@ text_features = self.text_encoder(text_ids)
 
 得到：
 
-[
+$$
 [32,512]
-]
+$$
 
 ---
 
@@ -637,9 +637,9 @@ text_features = F.normalize(text_features, dim=-1)
 
 shape 不变：
 
-[
+$$
 [32,512] \to [32,512]
-]
+$$
 
 这里只是把每个向量归一化到单位球面上，方便用余弦相似度。
 
@@ -658,15 +658,15 @@ logits_per_image = image_features @ text_features.t()
 
 所以：
 
-[
+$$
 [32,512] \times [512,32] = [32,32]
-]
+$$
 
 得到：
 
-[
+$$
 logits_per_image \in \mathbb{R}^{[32,32]}
-]
+$$
 
 这个矩阵里：
 
@@ -806,7 +806,7 @@ CLIP 的文本编码器之所以重要，是因为它学会了：
 
 ### 图像支路
 
-[
+$$
 [32,3,224,224]
 \to
 [32,196,768]
@@ -814,11 +814,11 @@ CLIP 的文本编码器之所以重要，是因为它学会了：
 [32,197,768]
 \to
 [32,512]
-]
+$$
 
 ### 文本支路
 
-[
+$$
 [32,77]
 \to
 [32,77,512]
@@ -826,15 +826,15 @@ CLIP 的文本编码器之所以重要，是因为它学会了：
 [32,77,512]
 \to
 [32,512]
-]
+$$
 
 ### 对比矩阵
 
-[
+$$
 [32,512] \times [512,32]
 \to
 [32,32]
-]
+$$
 
 ---
 
