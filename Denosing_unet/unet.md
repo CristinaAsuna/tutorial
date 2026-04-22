@@ -53,6 +53,13 @@ eps_pred
 
 而 diffusion 和普通 U-Net 最大区别是：
 
+
+
+## UNET Architechture 
+![UNET](unet_architechture.png)
+
+
+
 > **每个 ResBlock 都要知道 t**
 
 所以你会看到 `emb` 被一路传进去。
