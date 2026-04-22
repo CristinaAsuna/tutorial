@@ -16,9 +16,9 @@
 
 我们要写的是一个去噪网络：
 
-[
+$$
 \epsilon_\theta(x_t, t)
-]
+$$
 
 输入：
 
@@ -476,9 +476,9 @@ class AttentionBlock(nn.Module):
 
 普通 time injection 是：
 
-[
+$$
 h = h + \text{emb}
-]
+$$
 
 也就是只给一个 bias。
 
@@ -493,9 +493,9 @@ h = h + \text{emb}
 
 即：
 
-[
+$$
 h = \text{Norm}(h)\cdot (1 + \text{scale}) + \text{shift}
-]
+$$
 
 这个更强，因为它能控制：
 
@@ -641,21 +641,21 @@ self.side_embed = nn.Embedding(num_side_classes, emb_ch)
 
 因为 time embedding 最终已经是一个全局条件向量：
 
-[
+$$
 emb \in \mathbb{R}^{B \times emb_ch}
-]
+$$
 
 side embedding 也是同 shape：
 
-[
+$$
 side_emb \in \mathbb{R}^{B \times emb_ch}
-]
+$$
 
 所以最自然的做法就是：
 
-[
+$$
 emb = time_emb + side_emb
-]
+$$
 
 ---
 
@@ -869,3 +869,5 @@ class BetterUNet(nn.Module):
 ---
 
 下一步最适合做的是：我直接带你**从零逐行手写一个“最小可运行版 BetterUNet”**，每一行都解释它为什么这么写。
+
+
