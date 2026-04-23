@@ -116,3 +116,87 @@ class Upsample(nn.Module):
         return self.conv(x)
 
 
+class BasicUnet(nn.Module):
+    def __init__(self, in_c=3,base_c=64,out_c=3):
+        super().__init__()
+
+        emb_c=base_c*4
+
+        #time_emb
+        self.time_mlp=nn.Sequential(
+            nn.Linear(base_c,emb_c),
+            Silu(),
+            nn.Linear(emb_c,emb_c)
+
+        )
+
+        self.in_cov=nn.Conv2d(in_c,base_c,3,1)
+        self.down1=Resblock(base_c,base_c,emb_c)
+        self.down2=Resblock(base_c,base_c*2,emb_c)
+
+        self.downsample1=Downsample(base_c*2)
+
+        self.down3=Resblock(base_c*2,base_c*2,emb_c)
+        self.down4=Resblock(base_c*2,base_c*4,emb_c)
+
+        self.downsample2=Downsample(base_c*4)
+
+        #midchannel
+        self.mid1=Resblock(base_c*4,base_c*4,emb_c)
+        self.mid2=Resblock(base_c*2,base_c*4,emb_c)
+
+        #up
+        self.upsample1=Upsample(base_c*4)
+        self.up1=Resblock(2*base_c*4,base_c*2,emb_c)
+        self.up2=Resblock(2*base_c*4,2*base_c,base_c)
+
+        self.upsample2=Upsample(base_c*2)
+        self.up3=Resblock(2*base_c*2,base_c,emb_c)
+        self.up4=Resblock(2*base_c,base_c,base_c)
+
+        self.out_norm=nn.GroupNorm(32 if base_c>=32 else 1,base_c)
+
+        self.out_act=Silu()
+        self.out_conv=nn.Conv2d(base_c,out_c,3,1)
+
+        self.base_c=base_c
+
+    def forward(self,x:torch.Tensor,t:torch.Tensor)->torch.Tensor:
+        emb=timestep_emb(t,self.base_c)
+        emb=self.time_mlp(emb)
+
+        x=self.in_cov(x)
+
+        #down
+        h1=self.down1(x,emb)
+        h2=self.down2(h1,emb)
+        x=self.downsample1(h2)
+
+
+        #use concat to add shortcut
+        #cat[h,x]
+        h3 = self.down3(x, emb)
+        h4 = self.down4(h3, emb)
+        x = self.downsample2(h4)
+
+        # middle
+        x = self.mid1(x, emb)
+        x = self.mid2(x, emb)
+
+        # up
+        x = self.upsample1(x)
+        x = torch.cat([x, h4], dim=1)
+        x = self.up1(x, emb)
+
+        x = torch.cat([x, h3], dim=1)
+        x = self.up2(x, emb)
+
+        x = self.upsample2(x)
+        x = torch.cat([x, h2], dim=1)
+        x = self.up3(x, emb)
+
+        x = torch.cat([x, h1], dim=1)
+        x = self.up4(x, emb)
+        x=self.out_conv(self.out_act(self.out_norm(x)))
+
+        return x
