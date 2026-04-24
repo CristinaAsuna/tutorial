@@ -102,7 +102,7 @@ class PatchEmbed(nn.Module):
         x=x.transpose(1,2)
         return x
 
-class VIT(nn.Module):
+class VITcls(nn.Module):
     def __init__(self,
                  img_size:int=224,
                  patch_size:int=16,
@@ -170,4 +170,79 @@ class VIT(nn.Module):
         out=self.head(cls)
         #(b,num_cls)
         return out
+    
+
+class VIT(nn.Module):
+    def __init__(self,
+                 img_size:int=224,
+                 patch_size:int=16,
+                 in_chans:int=3,
+                 emb_dim:int=768,
+                 depth:int=12,
+                 num_heads:int=12,
+                 mlp_ratio:float=4.0,
+                 dropout:float=0.0):
+        super().__init__()
+
+        self.patch_emb=PatchEmbed(img_size=img_size,
+                                  patch_size=patch_size,
+                                  in_chans=in_chans,
+                                  embed_dim=emb_dim)
+        num_patches=self.patch_emb.num_patches
+        #self.cls_token=nn.Parameter(torch.zeros(1,1,emb_dim))
+        self.grid_size=self.patch_emb.grid_size
+        #position emb
+        self.pos_emb=nn.Parameter(torch.zeros(1,num_patches+1,emb_dim))
+
+        self.pos_drop=nn.Dropout(dropout)
+
+        self.blocks=nn.ModuleList(
+            [
+                TransformerEncoderblock(
+                    dim=emb_dim,
+                    num_heads=num_heads,
+                    mlp_ratio=mlp_ratio,
+                    dropout=dropout
+                )
+                for _ in range(depth)
+            ])
+        
+        self.norm=nn.LayerNorm(emb_dim)
+    def forward(self,x:torch.Tensor)->torch.Tensor:
+        #x (b,3,224,224)
+        b=x.shape[0]
+
+        #patch
+        x=self.patch_emb(x)
+        #->(b,196,768)
+        #196个position
+       # cls_token=self.cls_token.expand(b,-1,-1)
+        #(1,1,768)->(b,1,768)
+        #x=torch.cat((cls_token,x),dim=1)
+        #(b,197,768)
+
+        x=x+self.pos_emb
+        x=self.pos_drop(x)
+
+        for block in self.blocks:
+            x=block(x)
+            #still (b,197,768)
+
+        x=self.norm(x)
+        #取所有样本的第0个token
+        #因为使用cat[cls_token,x]
+        #所以cls是第0token
+        #cls=x[:,0]
+        #(b,768)
+        #out=self.head(cls)
+        #(b,num_cls)
+        # [B, 196, 768]
+        h=w=self.grid_size
+        x=x.view(b,h,w,-1)
+        #(b,14,14,768)
+        x=x.permute(0,3,1,2).contigous()
+        #(b,768,14,14)
+        return x
+    
+
     
