@@ -21,7 +21,7 @@ class TextEncoder(nn.Module):
             torch.randn(1,seq_len,context_len)
         )
         self.transformer=nn.ModuleList(
-            [TransformerEncoderblock(context_len,nheads)] for _ in range(layers)
+            [TransformerEncoderblock(context_len,nheads) for _ in range(layers)]
         )
 
         self.ln=nn.LayerNorm(context_len)
@@ -120,11 +120,11 @@ class VisionEncoder(nn.Module):
 
 class Clip(nn.Module):
     def __init__(self,
-                 vocab_size:int,
-                  seq_len:int,
-                   emb_dim:int,
-                    img_size:int,
-                     patch_size:int ):
+                 vocab_size:int=5000,
+                  seq_len:int=512,
+                   emb_dim:int=512,
+                    img_size:int=224,
+                     patch_size:int=16 ):
         super().__init__()
 
         self.img_encoder=VisionEncoder(
@@ -181,5 +181,5 @@ def main():
 
     loss.backward()
     print(loss)
-if __name__ =="main":
+if __name__ =="__main__":
     main()

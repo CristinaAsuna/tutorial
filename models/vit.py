@@ -74,7 +74,7 @@ class TransformerEncoderblock(nn.Module):
 
     def forward(self,x:torch.Tensor)->torch.Tensor:
         x=x+self.attn(self.norm1(x))
-        x=x+self.mlp(self.norm2(x))
+        x=x+self.ffn(self.norm2(x))
         return x
     
 class PatchEmbed(nn.Module):
