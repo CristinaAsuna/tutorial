@@ -27,7 +27,7 @@ class TimeEmbedding(nn.Module):
 
     def forward(self,time):
         #x (1,320)->(1,1280)
-        x=self.ln1(x)
+        x=self.ln1(time)
         x=F.silu(x)
         x=self.ln2(x)
 

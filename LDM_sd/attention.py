@@ -80,7 +80,12 @@ class CrossAttention(nn.Module):
         #text (b,seq_len_kv,dim_kv)=(b,77,768)
         init_shape=x.shape
         b,seq_len,dim=init_shape
-        temp_shape=(b,seq_len,self.n_heads,self.d_head)
+        """
+        x和text的Seq_len不相同,不能直接把temp_shape传给q,k,v.view(temp_shape)
+        要么写两个temp,要么直接用-1,让view自己去计算
+        
+        """
+        temp_shape=(b,-1,self.n_heads,self.d_head)
 
         #->(b,seq_lenq,dim)
         q=self.q(x)
