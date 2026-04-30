@@ -120,12 +120,13 @@ My recommendation is **B first, C second**. Variant B directly addresses the mos
 The core training objective should remain a standard diffusion denoising loss, but now on either the **paired state** $[L,R]$ or a **single side** $S\in\{L,R\}$, together with explicit forward consistency. This follows the classical diffusion formulation from DDPM / Improved DDPM / Score-SDE while borrowing the *consistency* idea from ControlNet++ and inverse-problem diffusion work. 
 
 Let the clean target be either
-$$
-z_0=[l_0,r_0]
-\quad\text{or}\quad
+
+$$z_0=[l_0,r_0]$$
+$$\quad\text{or}\quad
 z_0=s_0 \in \{l_0,r_0\},
 $$
-and the noised target at timestep \$t$ be
+and the noised target at timestep $t$ be
+
 $$
 z_t = \sqrt{\bar\alpha_t}\, z_0 + \sqrt{1-\bar\alpha_t}\,\epsilon,\qquad \epsilon\sim\mathcal N(0,I).
 $$
