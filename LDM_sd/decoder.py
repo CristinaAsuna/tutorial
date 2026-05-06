@@ -83,7 +83,7 @@ class VAE_ResidualBlock(nn.Module):
         x=self.conv1(self.act(self.norm1(x)))
         x=self.conv2(self.act(self.norm2(x)))
 
-        x=self.skip(x)
+        residual=self.skip(residual)
         return x+residual
     
 

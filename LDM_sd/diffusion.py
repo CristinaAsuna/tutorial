@@ -64,7 +64,7 @@ class Upsample(nn.Module):
         return self.conv(x)
     
 class UNET_Attn(nn.Module):
-    def __init__(self,n_heads,n_emb,d_context) :
+    def __init__(self,n_heads,n_emb,d_context=768) :
         super().__init__()
         channels=n_heads*n_emb
 
@@ -152,6 +152,7 @@ class UNET_Residual(nn.Module):
         x=self.conv1(x)
 
         time=F.silu(time)
+        time=self.linear_time(time)
         merged=x+time.unsqueeze(-1).unsqueeze(-1)
 
         merged=self.merge_norm(merged) 
@@ -213,9 +214,9 @@ class UNET(nn.Module):
         self.bottleneck=SwitchSequential(
             #(b,1280,h/64,w/64)->(b,1280,h/64,w/64)
             #res,attn,res
-            SwitchSequential(UNET_Residual(1280,1280)),
-            SwitchSequential(UNET_Attn(8,160)),
-            SwitchSequential(UNET_Residual(1280,1280)),
+            UNET_Residual(1280,1280),
+            UNET_Attn(8,160),
+            UNET_Residual(1280,1280),
         )
         
         #kind of different 
@@ -265,7 +266,7 @@ decoder[11] concat S0 : 320  + 320  = 640   -> 320, H/8
         )
 
 
-    def forward(self,latent,context,time):
+    def forward(self,x,context,time):
         #x (b,4,h/8,w/8)
         #context (b,seq_len,dim)
         #time(1,1280)
