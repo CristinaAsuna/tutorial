@@ -62,14 +62,16 @@ class VAE_Encoder(nn.Sequential):
 
         )
     
-    def forward(self,x:torch.Tensor,noise:torch.Tensor)->torch.Tensor:
-        
-        #x (b,3,h,w)-->(b,8,h/8,w/8)
+    def _encode_features(self, x: torch.Tensor) -> torch.Tensor:
         for layer in self:
             if getattr(layer,'stride',None)==(2,2):
                 #solve padding un
                 x=F.pad(x,(0,1,0,1))
             x=layer(x)
+        return x
+
+    def encode_stats(self, x: torch.Tensor, noise: torch.Tensor):
+        x = self._encode_features(x)
 
         #compulate mean,var
         #chunk from channel
@@ -82,9 +84,16 @@ class VAE_Encoder(nn.Sequential):
         #noise ~(0,1)
         #z     ~(mean,std**2)
         #to get z,compulate z=mean+std*nosie
-        x=mean+std*noise
+        latents=mean+std*noise
 
-        x*=0.18215
+        latents*=0.18215
+
+        return latents, mean, log_var
+
+    def forward(self,x:torch.Tensor,noise:torch.Tensor)->torch.Tensor:
+        
+        #x (b,3,h,w)-->(b,8,h/8,w/8)
+        x, _, _ = self.encode_stats(x, noise)
 
         #x (b,4,h/8,w/8)
         return x

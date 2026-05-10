@@ -120,7 +120,7 @@ class DDPMSampler:
 
         #x0 which was predict
         #x0=(xt-sqrt(1-alpha_bart)*noise_unet(xt))/sqrt(alpha_bart)
-        x0=(latents-one_minus_alpha_bar**(0.5))*model_output/alpha_prod_t**(0.5)
+        x0=(latents-one_minus_alpha_bar**(0.5)*model_output)/alpha_prod_t**(0.5)
 
         """
         mean=sqrt(alpha_bar_prev)*beta_t/(1-aplha_bar_t)*x0 

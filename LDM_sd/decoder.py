@@ -141,7 +141,7 @@ class VAE_Decoder(nn.Sequential):
         )
     def forward(self,x):
         #x (b,4,h/8,w/8)-->(b,3,h,w)
-        x=x*0.18215
+        x=x/0.18215
         for layer in self:
             x=layer(x)
 

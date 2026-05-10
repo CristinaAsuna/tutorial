@@ -76,7 +76,7 @@ class ClipLayer(nn.Module):
         x=x*torch.sigmoid(1.702*x)
         x=self.ln2(x)
 
-        x+=residaul
+        x+=residual
 
         return x
 
