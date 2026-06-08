@@ -12,3 +12,5 @@ __pycache__/
 #data 
 celeba_hq_256/
 checkpoints/
+
+.vscode/
