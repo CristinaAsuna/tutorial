@@ -1,36 +1,7 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
-
-class VAE_ResidualBlock(nn.Module):
-    def __init__(self, in_c,out_c):
-        super().__init__()
-
-        # norm1,conv1
-        self.norm1=nn.GroupNorm(32,in_c )
-        self.conv1=nn.Conv2d(in_c,out_c,kernel_size=3,padding=1)
-
-        # actva
-        self.act=nn.SiLU()
-        # norm2,conv2
-        self.norm2=nn.GroupNorm(32,out_c)
-        self.conv2=nn.Conv2d(out_c,out_c,kernel_size=3,padding=1)
-
-        #solve skip dim diff
-
-        if in_c!=out_c:
-            self.skip=nn.Conv2d(in_c,out_c,kernel_size=1,padding=0)
-        else:
-            self.skip=nn.Identity()
-
-    def forward(self,x:torch.Tensor)->torch.Tensor:
-        residual=x
-        x=self.conv1(self.act(self.norm1(x)))
-        x=self.conv2(self.act(self.norm2(x)))
-
-        residual=self.skip(residual)
-        return x+residual
-    
+   
 class Residualblock(nn.Module):
     def __init__(self, inc=3,outc=3):
         super().__init__()
@@ -134,3 +105,59 @@ class AEencoder(nn.Module):
         return x
     
 class AEdecoder(nn.Module):
+    def __init__(self,inc,factor=8,latent=64):
+        super().__init__()
+        self.decode=nn.ModuleList(
+            nn.Conv2d(latent,latent,kernel_size=1,padding=0),
+            nn.Conv2d(latent,512,kernel_size=3,padding=1),
+
+            Residualblock(512,512),
+            MHSA(512),
+            Residualblock(512,512),
+            Residualblock(512,512),
+            Residualblock(512,512),
+            Residualblock(512,512),
+
+            #
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(512,512,kernel_size=3,padding=1),
+            Residualblock(512,512),
+            Residualblock(512,512),
+            Residualblock(512,512),
+
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(512,512,kernel_size=3,padding=1),
+
+            Residualblock(512,256),
+            Residualblock(256,256),
+            Residualblock(256,256),
+
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(256,256,kernel_size=3,padding=1),
+
+            Residualblock(256,128),
+            Residualblock(128,128),
+            Residualblock(128,128),
+
+            nn.GroupNorm(32,128),
+            nn.SiLU(),
+            nn.Conv2d(128,inc,kernel_size=3,padding=1)
+
+        )
+    def forward(self,x):
+        x=self.decode(x)
+        return x
+
+
+def train(model,device,epochs):
+    
+    for epoch in epochs:
+        x=dataloader.iter
+
+        latents=AEencoder(x)
+        out=AEdecoder(latents)
+
+        loss=F.mse_loss(x,out).sum(dim=0)
+        loss.backward()
+        
+
