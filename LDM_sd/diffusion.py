@@ -12,7 +12,11 @@ Diffusion(unet)
         -downsample,bottleneck,upsample
     output
 
+x ──> UNET_Residual(x, time)
+  ──> UNET_Attn(x, context)
+  ──> Upsample(x)
 
+class SwitchSequential(nn.Sequential):
 
 
 
