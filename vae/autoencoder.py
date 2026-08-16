@@ -20,10 +20,10 @@ class Residualblock(nn.Module):
             self.residual=nn.Identity()
     
     def forward(self,x):
-        residual=x
-        x=self.conv1(self.norm1(x))
-        x=self.conv2(self.norm2(x))
-        residual=self.residual(residual)
+        residual=self.residual(x)
+        x=self.conv1(F.silu(self.norm1(x)))
+        x=self.conv2(F.silu(self.norm2(x)))
+        
 
         return x+residual
     
@@ -41,6 +41,7 @@ class MHSA(nn.Module):
         self.out=nn.Linear(dmodel,dmodel)
 
     def forward(self,x):
+        residual=x
         is_spatial=x.ndim==4
         if is_spatial:
             b,c,h,w=x.shape
@@ -69,7 +70,7 @@ class MHSA(nn.Module):
         if is_spatial:
             out = out.transpose(1, 2).reshape(b, c, h, w)
 
-        return out
+        return out+residual
     
 class AEencoder(nn.Module):
     def __init__(self,inc=1,factor=8,latent=64):
@@ -156,6 +157,7 @@ class AEdecoder(nn.Module):
             nn.GroupNorm(32, channels),
             nn.SiLU(),
             nn.Conv2d(channels, inc, kernel_size=3, padding=1),
+            nn.Sigmoid(),
         ])
         self.decode = nn.ModuleList(layers)
     def forward(self,x):
@@ -229,7 +231,7 @@ def train_autoendoer(model,dataloader,
 
         avg_loss=total_loss/total_samples
         print(f"Epoch [{epoch + 1}/{epochs}] | MSE Loss: {avg_loss:.6f}")
-
+    return model
 
 def main():
     device="cuda" if torch.cuda.is_available() else "cpu"
@@ -251,7 +253,7 @@ def main():
     )
     train_loader=DataLoader(
         train_dataset,
-        batch_size=64,
+        batch_size=128,
         shuffle=True,
         num_workers=0,
 
@@ -265,11 +267,11 @@ def main():
     model=train_autoendoer(
         model=model,
         dataloader=train_loader,
-        epochs=10,
+        epochs=2,
         lr=1e-3,
         device=device,
     )
-    torch.save(model.state_dict(),"mnisit_ae.pth")
+    torch.save(model.state_dict(),"mnist_ae.pth")
     total=sum(p.numel() for p in model.parameters())
     print(f"model size: {total:,}")
 
