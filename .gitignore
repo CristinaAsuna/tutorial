@@ -8,6 +8,7 @@ __pycache__/
 
 #model pth
 *.pth
+*.pt
 
 #data 
 celeba_hq_256/

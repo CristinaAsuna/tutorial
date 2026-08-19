@@ -1,6 +1,21 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
+from utils.attention import SpatialMHSA,SpatialTransformer
+
+
+def make_group_norm(channels,max_groups):
+    """
+    make sure channels%group=0
+    """
+    groups=min(channels,max_groups)
+    while channels%groups !=0:
+        groups-=1
+    return nn.GroupNorm(groups,channels,eps=1e-6)
+
+
+
+
 
 class Residualblock(nn.Module):
     def __init__(self, inc, outc, dropout=0.0):
@@ -91,3 +106,76 @@ class VectorQuantizer(nn.Module):
         }
 
         return z_q,indices,vq_loss,metrics
+    
+class TimeResidualblock(nn.Module):
+    """
+    x:        (B, in_channels, H, W)
+    time_emb: (B, time_dim)
+    output:   (B, out_channels, H, W)
+    """
+    def __init__(self, inc, outc, 
+                 time_dim,
+                 dropout=0.0,
+                 use_scale_shift=True):
+        super().__init__()
+        self.use_scale_shift=use_scale_shift
+        """
+        Normalize(feature)
+        → feature * (1 + condition_scale)
+        → feature + condition_shift
+        """
+        self.norm1=make_group_norm(inc)
+        self.norm2=make_group_norm(outc)
+        self.conv1=nn.Conv2d(inc,outc,kernel_size=3,padding=1)
+        self.conv2=nn.Conv2d(outc,outc,kernel_size=3,padding=1)
+
+        self.dropout=nn.Dropout(dropout)
+
+        #scale shift,need 2*out channel
+        time_out_dim= 2*outc if use_scale_shift else outc
+
+        if inc!=outc:
+            self.skip=nn.Conv2d(inc,outc,kernel_size=1)
+        else:
+            self.skip=nn.Identity()
+
+        self.time_proj=nn.Sequential(
+            nn.SiLU(),
+            nn.Linear(time_dim,time_out_dim)
+        )
+
+    def forward(self,x,time):
+        residual=self.skip(x)
+
+        h=self.conv1(F.silu(self.norm1(x)))
+
+        #time proj
+        time_emb=self.time_proj(time).to(dtype=h.dtype)
+
+        if self.use_scale_shift:
+            scale,shift=time_emb.chunk(2,dim=1)
+            #(b,c)-->(b,c,1,1)
+            # because of broadcasting, (b,c,1,1)-->(b,c,h,w)
+            #[:, :, None, None] 是在末尾插入两个长度为 1 的维度：
+            h=self.norm2(h)
+            h=h*(1+scale[:,:,None,None])
+            h=h+shift[:,:,None,None]
+            h=F.silu(h)
+        else:
+            h=h+time_emb[:,:,None,None]
+            h=F.silu(self.norm2(h))
+
+        h=self.conv2(self.dropout(h))
+
+        return h+residual
+
+class SwitchSequantial(nn.Sequential):
+    def forward(self,x,time,text):
+        for layer in self:
+            if isinstance(layer,TimeResidualblock):
+                layer=layer(x,time)
+            if isinstance(layer,SpatialTransformer):
+                layer=layer(x,text)
+            else:
+                layer=layer(x)
+
