@@ -1,7 +1,11 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
-from utils.basic_function import make_group_norm
+try:
+    from .nn import make_group_norm
+except ImportError:
+    # Supports direct execution when this file is used for local tests.
+    from nn import make_group_norm
 class SpatialMHSA(nn.Module):
     def __init__(self, channels, nheads=8, dropout=0.0):
         super().__init__()
