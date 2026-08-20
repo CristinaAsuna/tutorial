@@ -11,7 +11,7 @@ from tqdm.auto import tqdm
 
 from utils.checkpoint import load_checkpoint, save_checkpoint
 from utils.data import FlatImageDataset, build_image_transform
-from utils.inference import save_reconstruction_grid
+from utils.inference import save_generated_grid, save_reconstruction_grid
 from utils.losses import VQGANLoss
 
 
@@ -206,4 +206,245 @@ class VQGANTrainer:
                 self.config.sample_count,
             )
             self._save(epoch)
+        return self.model
+
+
+@dataclass
+class FlowMatchingTrainConfig:
+    """通用图像 Flow Matching 训练配置。"""
+
+    data_root: str
+    output_dir: str
+    image_size: int = 64
+    batch_size: int = 16
+    epochs: int = 10
+    num_workers: int = 4
+    learning_rate: float = 2e-4
+    weight_decay: float = 1e-4
+    time_scale: float = 1000.0
+    sample_steps: int = 50
+    sample_count: int = 16
+    checkpoint_every: int = 1
+    seed: int = 42
+    resume_checkpoint: str = ""
+
+
+class FlowMatchingTrainer:
+    """训练任意满足 ``model(x_t, model_time) -> velocity`` 的网络。"""
+
+    def __init__(self, model, pipeline, config: FlowMatchingTrainConfig):
+        self.model = model
+        self.pipeline = pipeline
+        self.config = config
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.to(self.device)
+        self.output_dir = Path(config.output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.optimizer = AdamW(
+            self.model.parameters(),
+            lr=config.learning_rate,
+            weight_decay=config.weight_decay,
+        )
+        self.global_step = 0
+        self.start_epoch = 1
+        self._restore_if_requested()
+
+    def _restore_if_requested(self):
+        if not self.config.resume_checkpoint:
+            return
+        checkpoint = load_checkpoint(
+            self.config.resume_checkpoint,
+            self.model,
+            self.device,
+            optimizers={"model": self.optimizer},
+        )
+        self.global_step = checkpoint["global_step"]
+        self.start_epoch = checkpoint["epoch"] + 1
+        print(f"Resumed from {self.config.resume_checkpoint}: epoch {self.start_epoch}, step {self.global_step}")
+
+    def _build_dataloader(self):
+        dataset = FlatImageDataset(
+            self.config.data_root,
+            build_image_transform(self.config.image_size, value_range="tanh"),
+        )
+        workers = min(self.config.num_workers, os.cpu_count() or 1)
+        loader = DataLoader(
+            dataset,
+            batch_size=self.config.batch_size,
+            shuffle=True,
+            num_workers=workers,
+            pin_memory=self.device.type == "cuda",
+            persistent_workers=workers > 0,
+        )
+        return dataset, loader
+
+    def _save(self, epoch):
+        extra = {"model_config": self.model.get_config()} if hasattr(self.model, "get_config") else None
+        args = dict(
+            model=self.model,
+            epoch=epoch,
+            global_step=self.global_step,
+            optimizers={"model": self.optimizer},
+            config=self.config,
+            extra=extra,
+        )
+        save_checkpoint(self.output_dir / "flow_matching_latest.pt", **args)
+        if epoch % self.config.checkpoint_every == 0:
+            save_checkpoint(self.output_dir / f"flow_matching_epoch_{epoch:03d}.pt", **args)
+
+    def fit(self, dataloader=None, dataset_size=None):
+        torch.manual_seed(self.config.seed)
+        if dataloader is None:
+            dataset, loader = self._build_dataloader()
+            dataset_size = len(dataset)
+        else:
+            loader = dataloader
+            dataset_size = len(loader.dataset) if dataset_size is None else dataset_size
+        print(f"Device: {self.device} | images: {dataset_size:,} | output: {self.output_dir.resolve()}")
+
+        for epoch in range(self.start_epoch, self.config.epochs + 1):
+            self.model.train()
+            total_loss = 0.0
+            progress = tqdm(loader, desc=f"Epoch {epoch}/{self.config.epochs}", unit="batch")
+
+            for images in progress:
+                images = images.to(self.device, non_blocking=True)
+                self.optimizer.zero_grad(set_to_none=True)
+                loss, metrics = self.pipeline.training_loss(self.model, images)
+                loss.backward()
+                self.optimizer.step()
+
+                self.global_step += 1
+                total_loss += float(loss.detach())
+                progress.set_postfix(loss=f"{float(loss.detach()):.5f}", t=f"{float(metrics['t']):.3f}")
+
+            average_loss = total_loss / len(loader)
+            print(f"Epoch {epoch}/{self.config.epochs} | velocity MSE: {average_loss:.6f}")
+
+            self.model.eval()
+            with torch.no_grad():
+                samples = self.pipeline.sample(
+                    self.model,
+                    batch_size=self.config.sample_count,
+                    image_shape=images.shape[1:],
+                    steps=self.config.sample_steps,
+                    device=self.device,
+                )
+            save_generated_grid(samples.cpu(), self.output_dir / f"samples_epoch_{epoch:03d}.png", nrow=4)
+            self._save(epoch)
+
+        return self.model
+
+
+@dataclass
+class ScoreSDETrainConfig:
+    """连续时间 VP score-SDE 训练配置。"""
+
+    output_dir: str
+    epochs: int = 20
+    learning_rate: float = 2e-4
+    weight_decay: float = 1e-4
+    time_scale: float = 1000.0
+    beta_min: float = 0.1
+    beta_max: float = 20.0
+    sde_eps: float = 1e-5
+    sample_steps: int = 200
+    sample_count: int = 16
+    sample_every: int = 5
+    seed: int = 42
+    resume_checkpoint: str = ""
+
+
+class ScoreSDETrainer:
+    """用于 ``pipeline.training_loss`` 与 reverse-SDE sampler 的通用训练器。"""
+
+    def __init__(self, model, pipeline, config: ScoreSDETrainConfig):
+        self.model = model
+        self.pipeline = pipeline
+        self.config = config
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.to(self.device)
+        self.output_dir = Path(config.output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.optimizer = AdamW(
+            self.model.parameters(),
+            lr=config.learning_rate,
+            weight_decay=config.weight_decay,
+        )
+        self.global_step = 0
+        self.start_epoch = 1
+        self._restore_if_requested()
+
+    def _restore_if_requested(self):
+        if not self.config.resume_checkpoint:
+            return
+        checkpoint = load_checkpoint(
+            self.config.resume_checkpoint,
+            self.model,
+            self.device,
+            optimizers={"model": self.optimizer},
+        )
+        self.global_step = checkpoint["global_step"]
+        self.start_epoch = checkpoint["epoch"] + 1
+        print(f"Resumed from {self.config.resume_checkpoint}: epoch {self.start_epoch}, step {self.global_step}")
+
+    def _save_latest(self, epoch):
+        extra = {"model_config": self.model.get_config()} if hasattr(self.model, "get_config") else None
+        save_checkpoint(
+            self.output_dir / "score_sde_latest.pt",
+            model=self.model,
+            epoch=epoch,
+            global_step=self.global_step,
+            optimizers={"model": self.optimizer},
+            config=self.config,
+            extra=extra,
+        )
+
+    def fit(self, dataloader):
+        torch.manual_seed(self.config.seed)
+        print(
+            f"Device: {self.device} | images: {len(dataloader.dataset):,} | "
+            f"output: {self.output_dir.resolve()}"
+        )
+
+        for epoch in range(self.start_epoch, self.config.epochs + 1):
+            self.model.train()
+            total_loss = 0.0
+            progress = tqdm(dataloader, desc=f"Epoch {epoch}/{self.config.epochs}", unit="batch")
+            image_shape = None
+
+            for images in progress:
+                images = images.to(self.device, non_blocking=True)
+                image_shape = images.shape[1:]
+                self.optimizer.zero_grad(set_to_none=True)
+                loss, metrics = self.pipeline.training_loss(self.model, images)
+                loss.backward()
+                self.optimizer.step()
+
+                self.global_step += 1
+                total_loss += float(loss.detach())
+                progress.set_postfix(
+                    loss=f"{float(loss.detach()):.5f}",
+                    t=f"{float(metrics['t']):.3f}",
+                    std=f"{float(metrics['std']):.3f}",
+                )
+
+            print(f"Epoch {epoch}/{self.config.epochs} | weighted score loss: {total_loss / len(dataloader):.6f}")
+            self._save_latest(epoch)  # overwritten each epoch; no epoch-by-epoch weight archive
+
+            if epoch % self.config.sample_every == 0 or epoch == self.config.epochs:
+                self.model.eval()
+                samples = self.pipeline.sample_euler_maruyama(
+                    self.model,
+                    batch_size=self.config.sample_count,
+                    image_shape=image_shape,
+                    steps=self.config.sample_steps,
+                    device=self.device,
+                )
+                save_generated_grid(
+                    samples.cpu(),
+                    self.output_dir / f"samples_epoch_{epoch:03d}.png",
+                    nrow=4,
+                )
+
         return self.model

@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
@@ -41,3 +42,26 @@ def build_image_transform(image_size, value_range="tanh"):
     elif value_range != "sigmoid":
         raise ValueError("value_range must be 'tanh' or 'sigmoid'.")
     return transforms.Compose(steps)
+
+
+class NpzImageDataset(Dataset):
+    """读取 ``images`` 为 NHWC uint8 的 .npz 图像数据集，例如本地 CIFAR-10。"""
+
+    def __init__(self, path, transform, image_key="images"):
+        path = Path(path)
+        if not path.is_file():
+            raise FileNotFoundError(f"NPZ dataset does not exist: {path}")
+        with np.load(path) as archive:
+            if image_key not in archive:
+                raise KeyError(f"'{image_key}' not found in {path}; keys: {archive.files}")
+            self.images = archive[image_key]
+        if self.images.ndim != 4 or self.images.shape[-1] not in {1, 3, 4}:
+            raise ValueError(f"Expected NHWC image array, got {self.images.shape}")
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, index):
+        image = Image.fromarray(self.images[index])
+        return self.transform(image.convert("RGB"))
