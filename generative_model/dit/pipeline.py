@@ -14,9 +14,9 @@ directories, so one mathematical correction benefits U-Net and DiT equally.
 
 from typing import Literal
 
-from diffusion.pipeline import DDPMPipeline
-from flow_matching.pipeline import FlowMatchingPipeline
-from score_matching.pipeline import ScoreMatchingPipeline, VPSDE
+from generative_model.diffusion.pipeline import DDPMPipeline
+from generative_model.flow_matching.pipeline import FlowMatchingPipeline
+from generative_model.score_matching.pipeline import ScoreMatchingPipeline, VPSDE
 
 ObjectiveName = Literal["ddpm", "flow_matching", "vp_sde"]
 

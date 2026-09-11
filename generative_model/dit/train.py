@@ -1,9 +1,9 @@
 """Train the same DiT architecture under one selected generative objective.
 
 Examples (run from project root):
-    python -m dit.train --objective ddpm
-    python -m dit.train --objective flow_matching
-    python -m dit.train --objective vp_sde
+    python -m generative_model.dit.train --objective ddpm
+    python -m generative_model.dit.train --objective flow_matching
+    python -m generative_model.dit.train --objective vp_sde
 """
 
 import argparse
@@ -12,14 +12,14 @@ from pathlib import Path
 
 from torch.utils.data import DataLoader
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from dit.pipeline import build_pipeline
-from utils.data import NpzImageDataset, build_image_transform
-from utils.dit import DiT, DiTConfig
-from utils.trainers import (
+from generative_model.dit.model import DiT, DiTConfig
+from generative_model.dit.pipeline import build_pipeline
+from general_utils.utils.data import NpzImageDataset, build_image_transform
+from general_utils.utils.trainers import (
     DDPMTrainConfig,
     DDPMTrainer,
     FlowMatchingTrainConfig,

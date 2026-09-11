@@ -6,14 +6,14 @@ from pathlib import Path
 
 import torch
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from dit.pipeline import build_pipeline
-from utils.checkpoint import read_checkpoint
-from utils.dit import DiT, DiTConfig
-from utils.inference import save_generated_grid
+from generative_model.dit.model import DiT, DiTConfig
+from generative_model.dit.pipeline import build_pipeline
+from general_utils.utils.checkpoint import read_checkpoint
+from general_utils.utils.inference import save_generated_grid
 
 
 def main():
