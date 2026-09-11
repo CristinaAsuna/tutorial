@@ -1,28 +1,31 @@
-# Generative AI — Learning & From-Scratch Implementations
+# Generative AI & MLLM — From-Scratch Tutorials
 
-A personal learning repository for generative AI: understanding the math and rebuilding
-generative models from scratch in PyTorch, alongside course labs, tutorials, and experiments.
+这是一个以 PyTorch 为主的个人学习仓库：既保留生成模型的数学与训练实现，也新增现代视觉自监督与多模态大模型的逐步教学代码。
 
-## Generative Models — Progress
+## Repository layout
 
-Implemented from scratch in [`from_scratch/`](from_scratch/):
-
-- [x] **Autoencoder (AE)** — `from_scratch/vae/`
-- [x] **Variational Autoencoder (KL-VAE)** — `from_scratch/vae/`
-- [x] **Vector-Quantized VAE (VQ-VAE)** — `from_scratch/vqvae/`
-- [x] **VQGAN** — `from_scratch/vqgan/`
-- [x] **Flow Matching** — `from_scratch/flow_matching/`
-- [x] **Score Matching** — `from_scratch/score_matching/`
-- [ ] **DDPM** (Denoising Diffusion Probabilistic Models) — `from_scratch/diffusion/` — next up
-- [ ] **VAR** (Visual Autoregressive) — planned
-
-## Repository Layout
-
-| Directory | Description |
+| Directory | 内容 |
 | --- | --- |
-| [`from_scratch/`](from_scratch/) | Main repo: generative models implemented from scratch (VAE family, flow/score matching, diffusion). |
-| [`DL-Demos/`](DL-Demos/) | Cloned [DL-Demos](https://github.com/SingleZombie/DL-Demos) — deep-learning demos (CNN, RNN, Transformer, ddpm, ddim, pixelcnn, …). |
-| [`cs336/`](cs336/) | Stanford CS336 *Language Modeling from Scratch* — assignments. |
-| [`diffusers_test/`](diffusers_test/) | Hugging Face `diffusers` experiments and tutorials (intro notebooks, Stable Diffusion pipelines). |
-| [`iap-diffusion-labs/`](iap-diffusion-labs/) | MIT 6.S184/6.S975 *Generative AI with SDEs* labs. |
-| `data/`, `work_dirs/` | Datasets and training outputs (gitignored). |
+| [`mllm/`](mllm/) | MAE、DINO + iBOT、BLIP-2、LLaVA 的机制教学实现、TODO 关卡与 paper-recipe 配置合同。|
+| [`generative_model/`](generative_model/) | AE、KL-VAE、VQ-VAE、VQGAN、DDPM、Flow Matching、VP-SDE Score Matching、DiT/LDM 与课程实验。|
+| [`general_utils/`](general_utils/) | `utils/`：生成模型的 2D/扩散工具；`edu_core/`：token attention、ViT token、mask、EMA、batching 等跨教程基础组件。|
+
+`mllm/` 顶层 reference/demo 是可验证的 CPU toy，用于理解论文数据流；每篇的 `recipe/` 记录真实数据、预训练权重、分布式训练和指标所需的条件。它们不是对论文结果的未经验证声明。
+
+## Setup
+
+在包含 PyTorch 的环境中安装 MLLM 共享基础包：
+
+```bash
+python -m pip install -e "general_utils/edu_core[dev]"
+python -m pytest -q general_utils/edu_core/tests
+```
+
+例如运行 LLaVA 的 CPU demo：
+
+```bash
+cd mllm/llava
+python run_llava_demo.py
+```
+
+生成模型代码从仓库根目录执行时，使用 `general_utils.utils` 导入其训练、数据、checkpoint 和空间 attention 工具。

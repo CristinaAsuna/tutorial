@@ -1,0 +1,9 @@
+{
+  "paper": "BLIP-2",
+  "data": {"stage1": "/path/to/web_caption_pairs", "stage2": "/path/to/instruction_or_caption_pairs"},
+  "vision_encoder": {"family": "eva_clip_or_clip", "frozen": true, "normalization": "checkpoint_specific"},
+  "qformer": {"initialization": "bert", "num_query_tokens": 32},
+  "llm": {"family": "opt_or_flan_t5", "frozen_stage2": true},
+  "stage1_losses": ["itc", "itm", "itg"],
+  "runtime": {"precision": "bf16", "distributed_negatives": true, "distributed": "ddp"}
+}

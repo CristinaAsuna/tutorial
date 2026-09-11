@@ -1,0 +1,7 @@
+{
+  "paper": "MAE ViT-L/16 ImageNet-1K pre-training",
+  "data_root": "/path/to/imagenet/train",
+  "model": {"image_size": 224, "patch_size": 16, "encoder": "vit_large", "decoder_dim": 512, "mask_ratio": 0.75},
+  "optimization": {"optimizer": "adamw", "base_lr": 0.00015, "weight_decay": 0.05, "epochs": 1600, "warmup_epochs": 40, "schedule": "cosine"},
+  "runtime": {"precision": "bf16", "distributed": "ddp", "seed": 0}
+}

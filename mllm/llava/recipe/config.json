@@ -1,0 +1,9 @@
+{
+  "paper": "LLaVA-1.5-style visual instruction tuning",
+  "data": {"alignment": "/path/to/558k_alignment_data", "instruction": "/path/to/llava_instruction_data"},
+  "vision_encoder": {"family": "clip_vit", "frozen": true, "feature_layer": "checkpoint_specific", "feature_select": "patch"},
+  "language_model": {"family": "vicuna_or_llama", "conversation_template": "checkpoint_specific"},
+  "projector": "mlp2x_gelu",
+  "stages": ["projector_alignment", "visual_instruction_sft"],
+  "runtime": {"precision": "bf16", "distributed": "deepspeed_or_ddp", "llm_tuning": "lora_or_full"}
+}

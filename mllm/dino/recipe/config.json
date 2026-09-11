@@ -1,0 +1,8 @@
+{
+  "paper": "DINOv2 / iBOT-style self-distillation",
+  "data_root": "/path/to/curated_images",
+  "model": {"backbone": "vit_large", "patch_size": 14, "prototypes": 65536},
+  "augmentation": {"global_crops": 2, "local_crops": 8},
+  "optimization": {"optimizer": "adamw", "schedule": "cosine", "teacher_momentum": "cosine_to_1", "weight_decay": "cosine"},
+  "runtime": {"precision": "bf16", "distributed": "fsdp_or_ddp", "center_sync": "all_reduce"}
+}
