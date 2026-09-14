@@ -1,0 +1,8 @@
+{
+  "paper": "V-JEPA (Bardes et al., 2024)",
+  "data_root": "/path/to/video-dataset",
+  "model": {"frames": 16, "image_size": 224, "tubelet_size": 2, "patch_size": 16, "embed_dim": 1024},
+  "masking": {"num_target_blocks": 4, "target_block": [2, 4, 4], "context_is_complement": true},
+  "objective": {"target": "ema_teacher_latent", "loss": "smooth_l1", "pixel_reconstruction": false},
+  "runtime": {"precision": "bf16", "distributed": "ddp_or_fsdp", "checkpoint_metadata": ["seed", "ema_momentum", "data_version"]}
+}

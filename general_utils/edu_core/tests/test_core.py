@@ -1,11 +1,18 @@
+import pytest
 import torch
 from torch import nn
 
 from edu_core.attention import MultiHeadAttention
 from edu_core.batching import IGNORE_INDEX, expand_single_image_token, right_pad
 from edu_core.masks import causal_allow_mask
-from edu_core.training import freeze_and_keep_eval, update_ema
-from edu_core.vision import PatchEmbed, interpolate_2d_pos_embed
+from edu_core.training import cosine_ema_momentum, freeze_and_keep_eval, update_ema
+from edu_core.vision import (
+    PatchEmbed,
+    TubeletEmbed,
+    interpolate_2d_pos_embed,
+    interpolate_3d_pos_embed,
+    sincos_3d_pos_embed,
+)
 
 
 def test_causal_mask_disallows_future_keys():
@@ -27,6 +34,25 @@ def test_patch_embed_and_position_interpolation():
     tokens, grid = PatchEmbed(3, 8, 4)(torch.randn(2, 3, 8, 8))
     assert tokens.shape == (2, 4, 8) and grid == (2, 2)
     assert interpolate_2d_pos_embed(torch.randn(1, 5, 8), (3, 2)).shape == (1, 7, 8)
+
+
+def test_tubelet_embed_and_spatiotemporal_positions():
+    tokens, grid = TubeletEmbed(3, 12, tubelet_size=2, patch_size=4)(torch.randn(2, 3, 4, 8, 12))
+    assert tokens.shape == (2, 12, 12) and grid == (2, 2, 3)
+    assert sincos_3d_pos_embed(grid, 12).shape == (1, 12, 12)
+    learned = torch.randn(1, 9, 12)
+    assert interpolate_3d_pos_embed(learned, (1, 3, 3), (2, 2, 3)).shape == (1, 12, 12)
+
+
+def test_tubelet_embed_validation_and_ema_schedule():
+    embed = TubeletEmbed(3, 6, tubelet_size=2, patch_size=4)
+    with pytest.raises(ValueError, match="B, C, T, H, W"):
+        embed(torch.randn(2, 3, 4, 8))
+    with pytest.raises(ValueError, match="divisible"):
+        embed(torch.randn(2, 3, 3, 8, 8))
+    assert cosine_ema_momentum(0, 10, start=0.9, end=1.0) == 0.9
+    assert cosine_ema_momentum(10, 10, start=0.9, end=1.0) == 1.0
+    assert 0.9 < cosine_ema_momentum(5, 10, start=0.9, end=1.0) < 1.0
 
 
 def test_right_padding_and_image_expansion_mask_labels():

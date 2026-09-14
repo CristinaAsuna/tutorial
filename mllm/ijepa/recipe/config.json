@@ -1,0 +1,8 @@
+{
+  "paper": "I-JEPA ViT-H/14 ImageNet-1K self-supervised pre-training",
+  "data_root": "/path/to/imagenet/train",
+  "model": {"image_size": 224, "patch_size": 14, "encoder": "vit_huge", "predictor_dim": 384, "predictor_depth": 12},
+  "masking": {"num_target_blocks": 4, "context_scale": [0.85, 1.0], "target_scale": [0.15, 0.2], "aspect_ratio": [0.75, 1.5]},
+  "optimization": {"optimizer": "adamw", "epochs": 600, "schedule": "cosine", "ema_momentum": [0.996, 1.0]},
+  "runtime": {"precision": "bf16", "distributed": "ddp", "seed": 0}
+}
