@@ -7,4 +7,4 @@ python3 -m pip install -e "./general_utils/edu_core[dev]"
 python3 -m pytest ./general_utils/edu_core/tests
 ```
 
-Mask 统一约定为：布尔值 `True` 或数值 `1` 表示该 key/token 有效、可以被 attention 看见。各论文目录保留其课程关键计算，而只导入此包的通用组件。
+Mask 统一约定为：布尔值 `True` 或数值 `1` 表示该 key/token 有效、可以被 attention 看见。`GatedCrossAttentionBlock` 可把任意外部 token memory 接入冻结序列模型，且其零初始化 gate 使初始输出严格保持原模型路径。各论文目录保留其课程关键计算，而只导入此包的通用组件。

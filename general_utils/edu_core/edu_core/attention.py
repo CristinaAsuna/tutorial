@@ -52,7 +52,15 @@ class MultiHeadAttention(nn.Module):
         if allowed is not None:
             scores = scores.masked_fill(~allowed, torch.finfo(scores.dtype).min)
         weights = self.dropout(scores.softmax(dim=-1))
-        return self.out_proj((weights @ v).transpose(1, 2).reshape(b, q_len, self.dim))
+        if allowed is not None:
+            # ``softmax([min, ..., min])`` is uniform, not empty.  Queries
+            # whose mask exposes no key must instead contribute zero.
+            weights = weights * allowed.any(dim=-1, keepdim=True).to(weights.dtype)
+        output = self.out_proj((weights @ v).transpose(1, 2).reshape(b, q_len, self.dim))
+        if allowed is not None:
+            # Also remove the output-projection bias on an empty attention row.
+            output = output * allowed.any(dim=-1).any(dim=1).unsqueeze(-1).to(output.dtype)
+        return output
 
 
 class TransformerBlock(nn.Module):
@@ -70,3 +78,29 @@ class TransformerBlock(nn.Module):
         if context is not None:
             x = x + self.cross_attn(self.norm2(x), context, key_padding_mask=context_padding_mask)
         return x + self.mlp(self.norm3(x))
+
+
+class GatedCrossAttentionBlock(nn.Module):
+    """Cross-attend to an external token memory through zero-initialized gates.
+
+    The block is intentionally model-neutral: a caller supplies the memory and
+    its allowed-key mask.  ``attention_mask`` follows this package's convention
+    of ``True == allowed`` and may be ``(B, Q, K)`` when every query has a
+    different visible part of the memory.
+    """
+    def __init__(self, dim: int, num_heads: int, *, kv_dim: int | None = None, mlp_ratio: float = 4.0, dropout: float = 0.0):
+        super().__init__()
+        hidden = int(dim * mlp_ratio)
+        self.norm1 = nn.LayerNorm(dim)
+        self.cross_attn = MultiHeadAttention(dim, num_heads, kv_dim=kv_dim, dropout=dropout)
+        self.norm2 = nn.LayerNorm(dim)
+        self.mlp = nn.Sequential(nn.Linear(dim, hidden), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden, dim))
+        # Flamingo-style zero gates preserve the frozen backbone at step zero.
+        self.attn_gate = nn.Parameter(torch.zeros(()))
+        self.ff_gate = nn.Parameter(torch.zeros(()))
+
+    def forward(self, x: torch.Tensor, context: torch.Tensor, *, context_padding_mask=None, attention_mask=None) -> torch.Tensor:
+        attended = self.cross_attn(self.norm1(x), context, key_padding_mask=context_padding_mask,
+                                   attention_mask=attention_mask)
+        x = x + self.attn_gate.tanh() * attended
+        return x + self.ff_gate.tanh() * self.mlp(self.norm2(x))

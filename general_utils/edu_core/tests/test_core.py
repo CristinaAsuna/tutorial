@@ -2,7 +2,7 @@ import pytest
 import torch
 from torch import nn
 
-from edu_core.attention import MultiHeadAttention
+from edu_core.attention import GatedCrossAttentionBlock, MultiHeadAttention
 from edu_core.batching import IGNORE_INDEX, expand_single_image_token, right_pad
 from edu_core.masks import causal_allow_mask
 from edu_core.training import cosine_ema_momentum, freeze_and_keep_eval, update_ema
@@ -28,6 +28,17 @@ def test_attention_ignores_masked_key_values():
     changed[:, 2] = 10_000
     valid = torch.tensor([[1, 1, 0]])
     assert torch.allclose(attn(x, key_padding_mask=valid)[:, :2], attn(changed, key_padding_mask=valid)[:, :2], atol=1e-5)
+    assert torch.equal(attn(x[:, :1], context=x[:, :1], attention_mask=torch.tensor([[False]])), torch.zeros(1, 1, 4))
+
+
+def test_zero_gated_cross_attention_preserves_input_and_receives_gate_gradient():
+    torch.manual_seed(0)
+    block = GatedCrossAttentionBlock(4, 2)
+    x, memory = torch.randn(1, 2, 4, requires_grad=True), torch.randn(1, 3, 4)
+    out = block(x, memory, attention_mask=torch.tensor([[[True, False, False], [True, True, False]]]))
+    assert torch.equal(out, x)
+    out.square().mean().backward()
+    assert block.attn_gate.grad is not None and block.ff_gate.grad is not None
 
 
 def test_patch_embed_and_position_interpolation():

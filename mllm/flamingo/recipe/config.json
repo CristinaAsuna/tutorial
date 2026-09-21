@@ -1,0 +1,9 @@
+{
+  "paper": "Flamingo: a Visual Language Model for Few-Shot Learning (Alayrac et al., 2022)",
+  "data": {"interleaved_web": "/path/to/m3w", "image_text_pairs": "/path/to/image_text", "video_text_pairs": "/path/to/video_text"},
+  "vision_encoder": {"family": "nfnet_or_equivalent", "frozen": true},
+  "language_model": {"family": "pretrained_decoder_lm", "frozen": true},
+  "connector": {"perceiver_latents": 64, "gated_cross_attention_every": 4, "zero_init_tanh_gates": true},
+  "objective": {"type": "next_token_cross_entropy", "interleaved_media_text": true, "few_shot_evaluation": true},
+  "runtime": {"precision": "bf16", "distributed": "ddp_or_fsdp", "checkpoint_metadata": ["seed", "data_mixture", "media_sampling"]}
+}

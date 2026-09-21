@@ -6,7 +6,7 @@
 
 | Directory | 内容 |
 | --- | --- |
-| [`mllm/`](mllm/) | MAE、DINO + iBOT、I-JEPA、原始 V-JEPA、BLIP-2、LLaVA 的机制教学实现、TODO 关卡与 paper-recipe 配置合同。|
+| [`mllm/`](mllm/) | MAE、DINO + iBOT、I-JEPA、原始 V-JEPA、BLIP-2、LLaVA、Flamingo 的机制教学实现、TODO 关卡与 paper-recipe 配置合同。|
 | [`generative_model/`](generative_model/) | AE、KL-VAE、VQ-VAE、VQGAN、DDPM、Flow Matching、VP-SDE Score Matching、扩散 Transformer 与 latent-diffusion 实验。|
 | [`general_utils/`](general_utils/) | `utils/`：生成模型的通用 2D/训练工具；`edu_core/`：token attention、ViT token、mask、EMA、batching 等跨教程基础组件。|
 
