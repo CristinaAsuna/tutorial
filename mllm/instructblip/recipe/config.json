@@ -1,0 +1,8 @@
+{
+  "paper": "InstructBLIP: Towards General-purpose Vision-Language Models with Instruction Tuning (Dai et al., 2023)",
+  "backbones": {"vision_encoder": "eva_clip_or_equivalent", "language_model": "flan_t5_vicuna_or_equivalent", "frozen": true},
+  "qformer": {"instruction_aware": true, "query_only_visual_cross_attention": true, "num_query_tokens": 32},
+  "data": {"instruction_datasets": "/path/to/26_instruction_datasets", "tasks": ["vqa", "captioning", "classification", "reasoning"]},
+  "objective": {"type": "instruction_conditioned_next_token_loss", "llm_prompt_and_qformer_instruction_have_separate_tokenizers": true},
+  "runtime": {"precision": "bf16", "distributed": "deepspeed_or_ddp", "checkpoint_metadata": ["seed", "dataset_mixture", "templates"]}
+}
