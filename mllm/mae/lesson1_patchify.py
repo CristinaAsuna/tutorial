@@ -45,7 +45,18 @@ def patchify(imgs: torch.Tensor, patch_size: int = 16) -> torch.Tensor:
     # 5. patches = x.reshape(B, h * w, p * p * C)
     # 6. 返回 patches
     # =========================================================================
-    raise NotImplementedError("TODO 1.1 尚未实现！请实现 patchify")
+    B,C,H,W=imgs.shape
+    p=patch_size
+    h=H//p
+    w=W//p
+
+    size6=(B,C,h,p,w,p)
+    x=imgs.reshape(B,C,h,p,w,p)
+    x=x.permute(0,2,4,3,5,1)
+    #(B,h,w,p,p,C)
+    patches=x.reshape(B,h*w,p*p*C)
+    #raise NotImplementedError("TODO 1.1 尚未实现！请实现 patchify")
+    return patches
 
 
 # ==============================================================================
@@ -77,7 +88,17 @@ def unpatchify(patches: torch.Tensor, patch_size: int = 16, channels: int = 3) -
     # 5. imgs = x.reshape(B, C, h * p, w * p)
     # 6. 返回 imgs
     # =========================================================================
-    raise NotImplementedError("TODO 1.2 尚未实现！请实现 unpatchify")
+
+
+    B,N,D=patches.shape
+    p=patch_size
+    C=channels
+    h=w=int(N**0.5)
+    x=patches.reshape(B,h,w,p,p,C)
+    x=x.permute(0,5,1,3,2,4)
+    imgs=x.reshape(B,C,h*p,w*p)
+    return imgs
+    #raise NotImplementedError("TODO 1.2 尚未实现！请实现 unpatchify")
 
 
 # ==============================================================================

@@ -100,7 +100,21 @@ class MaskedAutoencoderViT(nn.Module):
         # 6. 依次过 self.blocks 和 self.norm
         # 7. 返回 x, mask, ids_restore
         # =========================================================================
-        raise NotImplementedError("TODO 4.1 尚未实现！请实现 forward_encoder")
+
+        x=self.patch_embed(x).flatten(2).transpose(1,2)
+        #pos emb without cls
+        x=x+self.pos_embed[:,1:,:]
+        #mask
+        x,mask,ids_restore=random_masking(x,mask_ratio)
+        cls_token=self.cls_token+self.pos_embed[:,:1,:]
+        cls_tokens=cls_token.expand(x.shape[0],-1,-1)
+        #
+        x=torch.cat((cls_tokens,x),dim=1)
+        for blk in self.blocks:
+            x = blk(x)
+        x=self.norm(x)
+        return x,mask,ids_restore
+        #raise NotImplementedError("TODO 4.1 尚未实现！请实现 forward_encoder")
 
     def forward_decoder(self, x: torch.Tensor, ids_restore: torch.Tensor) -> torch.Tensor:
         """
@@ -132,7 +146,24 @@ class MaskedAutoencoderViT(nn.Module):
         # 7. 预测像素 (切除 cls_token): pred = self.decoder_pred(x[:, 1:, :])  # (B, N, p*p*3)
         # 8. 返回 pred
         # =========================================================================
-        raise NotImplementedError("TODO 4.2 尚未实现！请实现 forward_decoder")
+        x = self.decoder_embed(x)
+        cls_tok = x[:, :1, :]
+        x_patches = x[:, 1:, :]
+        B, len_keep, D_dec = x_patches.shape
+        N = ids_restore.shape[1]
+        num_masked = N - len_keep
+        mask_tokens = self.mask_token.repeat(B, num_masked, 1)
+        # 4. 拼合并用 ids_restore 恢复空间拓扑:
+        x_all = torch.cat([x_patches, mask_tokens], dim=1)  # (B, N, D_dec)
+        x_restored = torch.gather(x_all, dim=1, index=ids_restore.unsqueeze(-1).repeat(1, 1, D_dec))
+        # 5. 拼回 cls_token 并加上解码器位置编码:
+        x = torch.cat([cls_tok, x_restored], dim=1)  # (B, 1 + N, D_dec)
+        x = x + self.decoder_pos_embed
+        for blk in self.decoder_blocks:
+            x = blk(x)
+        x=self.decoder_norm(x)
+        pred = self.decoder_pred(x[:, 1:, :])
+        return pred
 
     def forward_loss(self, imgs: torch.Tensor, pred: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         """
@@ -147,17 +178,32 @@ class MaskedAutoencoderViT(nn.Module):
         # TODO 4.3: 请实现单 Patch 归一化与 Masked MSE Loss
         # 步骤提示:
         # 1. target = patchify(imgs, self.patch_size)  # (B, N, p*p*3)
+        target=patchify(imgs,self.patch_size)
         # 2. 若 self.norm_pix_loss 为 True:
         #    mean = target.mean(dim=-1, keepdim=True)
         #    var = target.var(dim=-1, keepdim=True)
         #    target = (target - mean) / (var + 1e-6)**0.5
+
+        if self.norm_pix_loss:
+            mean=target.mean(dim=-1,keepdim=True)
+            var=target.var(dim=-1,keepdim=True)
+
+            target = (target - mean) / (var + 1e-6) ** 0.5
+
         # 3. 计算每个 patch 的平方差损失: loss = (pred - target) ** 2
+        loss=(pred-target)**2
+
         # 4. 在像素通道维度求平均: loss = loss.mean(dim=-1)  # (B, N)
+        loss=loss.mean(dim=-1)
+
         # 5. 【核心】只在 mask == 1 的位置求平均:
         #    loss = (loss * mask).sum() / mask.sum()
+        loss=(loss*mask).sum()/mask.sum()
+
         # 6. 返回 loss
         # =========================================================================
-        raise NotImplementedError("TODO 4.3 尚未实现！请实现 forward_loss")
+        return loss
+        #raise NotImplementedError("TODO 4.3 尚未实现！请实现 forward_loss")
 
     def forward(self, imgs: torch.Tensor, mask_ratio: float = 0.75):
         latent, mask, ids_restore = self.forward_encoder(imgs, mask_ratio)
@@ -183,6 +229,7 @@ def run_test():
         embed_dim=256,
         depth=2,
         decoder_embed_dim=128,
+        decoder_num_heads=8,
         decoder_depth=2
     )
 

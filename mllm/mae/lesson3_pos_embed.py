@@ -48,7 +48,18 @@ def get_1d_sincos_pos_embed_from_grid(embed_dim: int, pos: np.ndarray) -> np.nda
     #    emb = np.concatenate([emb_sin, emb_cos], axis=1)   # (M, D)
     # 5. 返回 emb
     # =========================================================================
-    raise NotImplementedError("TODO 3.1 尚未实现！请实现 get_1d_sincos_pos_embed_from_grid")
+    omega=np.arange(embed_dim//2,dtype=np.float32)
+    omega/=embed_dim/2.
+    omega=1./(10000**omega)
+
+    out=np.einsum('m,d->md',pos.reshape(-1),omega)
+
+    emb_sin=np.sin(out)
+    emb_cos=np.cos(out)
+
+    emb=np.concatenate([emb_sin,emb_cos],axis=1)
+    return emb
+    #raise NotImplementedError("TODO 3.1 尚未实现！请实现 get_1d_sincos_pos_embed_from_grid")
 
 
 # ==============================================================================
@@ -83,7 +94,29 @@ def get_2d_sincos_pos_embed(embed_dim: int, grid_size: int, cls_token: bool = Fa
     #    pos_embed = np.concatenate([np.zeros([1, embed_dim]), pos_embed], axis=0)
     # 6. 返回 pos_embed
     # =========================================================================
-    raise NotImplementedError("TODO 3.2 尚未实现！请实现 get_2d_sincos_pos_embed")
+
+    # 1. 生成高宽坐标网格:
+    grid_h = np.arange(grid_size, dtype=np.float32)
+    grid_w = np.arange(grid_size, dtype=np.float32)
+    grid = np.meshgrid(grid_w, grid_h)  # 包含网格 x 和 y 坐标
+    # 2. 堆叠并重排:
+    grid = np.stack(grid, axis=0)       
+# (2, grid_size, grid_size)
+    grid = grid.reshape([2, 1, grid_size, grid_size])
+    # 3. 分配维度: 高度与宽度各分 embed_dim // 2:
+    emb_h = get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[0])  
+# (H*W, D/2)
+    emb_w = get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[1])  
+# (H*W, D/2)
+    # 4. 拼接成 2D 编码:
+    pos_embed = np.concatenate([emb_h, emb_w], axis=1)                
+    #   # (H*W, D)
+    # 5. 如果 cls_token 为 True，在头部拼一行全 0 向量:
+    if cls_token:
+      pos_embed = np.concatenate([np.zeros([1, embed_dim]), pos_embed], axis=0)
+    # 6. 返回 pos_embed
+    return pos_embed
+   # raise NotImplementedError("TODO 3.2 尚未实现！请实现 get_2d_sincos_pos_embed")
 
 
 # ==============================================================================

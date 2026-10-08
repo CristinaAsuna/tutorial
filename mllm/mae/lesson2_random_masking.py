@@ -64,7 +64,37 @@ def random_masking(x: torch.Tensor, mask_ratio: float = 0.75) -> Tuple[torch.Ten
     #    mask = torch.gather(mask, dim=1, index=ids_restore)  # 恢复原始空间对应
     # 9. 返回 x_masked, mask, ids_restore
     # =========================================================================
-    raise NotImplementedError("TODO 2.1 尚未实现！请实现 random_masking")
+
+    B,N,D=x.shape
+    ratio=1-mask_ratio
+    len=int(N*ratio)
+    #noise
+    noise=torch.rand(B,N,device=x.device)
+    #shuffle
+    ids_shuffle = torch.argsort(noise, dim=1)
+    ids_restore=torch.argsort(ids_shuffle,dim=1)
+    #6. 取前 len_keep 个索引:
+    #    ids_keep = ids_shuffle[:, :len_keep]       # (B, len_keep)
+    ids_keep=ids_shuffle[:,:len]
+     # 7. 利用 torch.gather 抽取可见 Token:
+    #    x_masked = torch.gather(x, dim=1, index=ids_keep.unsqueeze(-1).repeat(1, 1, D))
+    # 8. 生成二值 mask 矩阵:
+    #    mask = torch.ones([B, N], device=x.device)
+    #    mask[:, :len_keep] = 0
+    #    mask = torch.gather(mask, dim=1, index=ids_restore)  # 恢复原始空间对应
+    # 9. 返回 x_masked, mask, ids_restore
+    x_masked=torch.gather(x,dim=1,index=ids_keep.unsqueeze(-1).repeat(1,1,D))
+
+    mask=torch.ones([B,N],device=x.device)
+    mask[:,:len]=0
+    mask=torch.gather(mask,dim=1,index=ids_restore)
+    return x_masked,mask,ids_restore
+
+
+
+
+
+    #raise NotImplementedError("TODO 2.1 尚未实现！请实现 random_masking")
 
 
 # ==============================================================================
