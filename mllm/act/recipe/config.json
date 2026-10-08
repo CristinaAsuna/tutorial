@@ -1,0 +1,7 @@
+{
+  "paper": "Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware (ACT, Zhao et al., 2023)",
+  "observations": {"cameras": ["top", "front", "left_wrist", "right_wrist"], "proprioception": "two_arm_follower_joint_positions"},
+  "actions": {"representation": "leader_target_absolute_joint_positions", "chunk_size": 100, "control_rate_hz": 50},
+  "policy": {"training": "cvae_l1_plus_beta_kl", "inference_style_latent": "zero", "temporal_ensemble": "exponential_over_overlapping_predictions"},
+  "runtime": {"dataset_root": "/path/to/aloha_demonstrations", "precision": "fp32_or_bf16", "checkpoint_metadata": ["action_statistics", "camera_calibration", "control_rate"]}
+}

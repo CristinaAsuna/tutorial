@@ -7,6 +7,7 @@
 - `mae/`：masked-pixel reconstruction；`dino/`：DINO + iBOT 的无标签 self-distillation；
 - `ijepa/`：图像 context 到 EMA target latent 的预测；`vjepa/`：原始 V-JEPA 的视频 tubelet latent prediction；
 - `blip2/`、`instructblip/`、`llava/`、`flamingo/`：视觉 token 接入语言模型的多模态训练链路；InstructBLIP 展示 instruction-aware Q-Former，Flamingo 展示交错多图文本与 gated cross-attention。
+- `act/`：VLA / embodied 学习的基础视觉模仿策略；从 action chunk、CVAE 和 temporal ensemble 开始进入机器人控制。
 
 先安装共享基础包：
 
