@@ -63,6 +63,23 @@ class MultiHeadAttention(nn.Module):
         return output
 
 
+class SelfAttentionBlock(nn.Module):
+    """Pre-LN encoder block without unused cross-attention parameters."""
+    def __init__(self, dim: int, num_heads: int, *, mlp_ratio: float = 4.0, dropout: float = 0.0):
+        super().__init__()
+        hidden = int(dim * mlp_ratio)
+        if hidden <= 0:
+            raise ValueError("MLP hidden dimension must be positive")
+        self.norm1, self.self_attn = nn.LayerNorm(dim), MultiHeadAttention(dim, num_heads, dropout=dropout)
+        self.norm2 = nn.LayerNorm(dim)
+        self.mlp = nn.Sequential(nn.Linear(dim, hidden), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden, dim))
+
+    def forward(self, x: torch.Tensor, *, key_padding_mask=None, attention_mask=None, causal=False):
+        x = x + self.self_attn(self.norm1(x), key_padding_mask=key_padding_mask,
+                               attention_mask=attention_mask, causal=causal)
+        return x + self.mlp(self.norm2(x))
+
+
 class TransformerBlock(nn.Module):
     """Pre-LN block; optional cross-attention is activated only with context."""
     def __init__(self, dim: int, num_heads: int, *, mlp_ratio: float = 4.0, kv_dim: int | None = None, dropout: float = 0.0):

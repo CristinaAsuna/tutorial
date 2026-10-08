@@ -14,7 +14,16 @@ def expect_value_error(fn):
     raise AssertionError("expected ValueError")
 
 
-def main():
+def main(implementation="reference"):
+    if implementation == "practice":
+        from practice_llava import build_sft_example, build_toy_llava, train_one_step
+    else:
+        from conversation import build_sft_example
+        from reference_llava import build_toy_llava
+        def train_one_step(model, optimizer, batch):
+            model.train(); optimizer.zero_grad()
+            loss=model(**batch)["loss"]; loss.backward(); optimizer.step()
+            return loss.detach()
     seed_everything(7)
     model = build_toy_llava(vocab_size=48)
     first = build_sft_example([3, 4], [5, 6], [7, 8])
@@ -64,24 +73,21 @@ def main():
     before = model.projector.layers[0].weight.detach().clone()
     optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=0.1)
     optimizer.zero_grad()
-    stage1_loss = model(input_ids, images, attention_mask, labels)["loss"]
-    stage1_loss.backward()
+    batch=dict(input_ids=input_ids,pixel_values=images,attention_mask=attention_mask,labels=labels)
+    stage1_loss = train_one_step(model, optimizer, batch)
     assert all(p.grad is None for p in model.vision_encoder.parameters())
     assert all(p.grad is None for p in model.llm.parameters())
     assert any(p.grad is not None for p in model.projector.parameters())
-    optimizer.step()
     assert not torch.equal(before, model.projector.layers[0].weight)
 
     # Stage 2: frozen vision stays eval/no-grad; projector and LLM learn.
     model.set_training_stage("instruction_tuning")
     optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=0.05)
     optimizer.zero_grad()
-    stage2_loss = model(input_ids, images, attention_mask, labels)["loss"]
-    stage2_loss.backward()
+    stage2_loss = train_one_step(model, optimizer, batch)
     assert not model.vision_encoder.training
     assert any(p.grad is not None for p in model.projector.parameters())
     assert any(p.grad is not None for p in model.llm.parameters())
-    optimizer.step()
 
     model.eval()
     g1 = model.generate(input_ids, images, attention_mask, max_new_tokens=3)
@@ -91,4 +97,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser=argparse.ArgumentParser()
+    parser.add_argument("--implementation", choices=["reference","practice"], default="reference")
+    args=parser.parse_args()
+    try: main(args.implementation)
+    except NotImplementedError as exc: parser.exit(2, str(exc)+"\n")

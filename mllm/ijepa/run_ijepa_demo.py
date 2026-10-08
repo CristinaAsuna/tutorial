@@ -4,9 +4,13 @@ from edu_core.training import seed_everything
 from reference_ijepa import IJEPA, sample_block_masks
 
 
-def main() -> None:
+def main(implementation="reference") -> None:
+    from reference_ijepa import IJEPA, sample_block_masks
+    if implementation == "practice":
+        from practice_ijepa import IJEPA, sample_block_masks, build_toy_ijepa
+        from lesson4_training_probe import jepa_training_step
     seed_everything(7)
-    model = IJEPA(image_size=32, patch_size=8, dim=48, depth=1, heads=4, predictor_dim=64, predictor_depth=1)
+    model = build_toy_ijepa() if implementation == "practice" else IJEPA(image_size=32, patch_size=8, dim=48, depth=1, heads=4, predictor_dim=64, predictor_depth=1)
     masks = sample_block_masks((4, 4), num_targets=2, block_size=(2, 2), generator=torch.Generator().manual_seed(3))
     images = torch.randn(2, 3, 32, 32)
     model.train()
@@ -15,10 +19,16 @@ def main() -> None:
     before = next(model.target_encoder.parameters()).detach().clone()
     out = model(images, masks)
     assert torch.isfinite(out["loss"]) and not torch.equal(out["context_indices"], out["target_indices"])
-    out["loss"].backward()
+    if implementation == "practice":
+        optimizer.zero_grad()
+        loss = jepa_training_step(model, images, masks, optimizer)
+        assert loss.ndim == 0 and torch.isfinite(loss)
+    else:
+        out["loss"].backward()
     assert any(p.grad is not None for p in model.context_encoder.parameters())
     assert all(p.grad is None for p in model.target_encoder.parameters())
-    optimizer.step(); model.update_target_encoder(0.9)
+    if implementation == "reference":
+        optimizer.step(); model.update_target_encoder(0.9)
     assert not torch.equal(before, next(model.target_encoder.parameters()))
     model.eval()
     with torch.no_grad():
@@ -28,4 +38,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--implementation", choices=("reference", "practice"), default="reference")
+    args = parser.parse_args()
+    main(args.implementation)

@@ -1,12 +1,22 @@
 """CPU checks for the ACT teaching implementation."""
 import math
+import argparse
 import torch
 
 from reference_act import TemporalEnsembler, build_toy_act, sample_action_chunks
 from edu_core.training import seed_everything
 
 
-def main() -> None:
+def main(implementation="reference") -> None:
+    if implementation == "practice":
+        from practice_act import TemporalEnsembler, build_toy_act, sample_action_chunks, training_step
+    else:
+        from reference_act import TemporalEnsembler, build_toy_act, sample_action_chunks
+        def training_step(model, optimizer, images, qpos, chunks, valid, beta=.01):
+            optimizer.zero_grad()
+            out=model(images,qpos,chunks,valid,beta=beta)
+            out["loss"].backward(); optimizer.step()
+            return out
     seed_everything(41)
     trajectories = torch.randn(2, 7, 4)
     all_chunks, all_valid = sample_action_chunks(trajectories, chunk_size=5)
@@ -34,6 +44,8 @@ def main() -> None:
     before = model.action_head.weight.detach().clone(); optimizer.step()
     assert not torch.equal(before, model.action_head.weight)
 
+    assert torch.isfinite(training_step(model,optimizer,images,qpos,chunks,valid)["loss"])
+
     chunk_a, chunk_b = model.predict_chunk(images, qpos), model.predict_chunk(images, qpos)
     assert torch.equal(chunk_a, chunk_b), "ACT inference must use deterministic z=0"
 
@@ -47,4 +59,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    parser=argparse.ArgumentParser()
+    parser.add_argument("--implementation",choices=("reference","practice"),default="reference")
+    main(parser.parse_args().implementation)

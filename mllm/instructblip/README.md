@@ -37,3 +37,23 @@ PYTHONPATH=../../general_utils/edu_core /Users/max/codebase/.ml/.venv/bin/python
 ## 教学边界
 
 初版使用 mock vision/LLM、固定小图像与 toy token IDs；不加载 EVA-CLIP、Flan-T5/Vicuna，不实现 26 数据集混合、真实 template、LoRA、分布式训练或 benchmark 复现。它实现的是 InstructBLIP 相对 BLIP-2 最重要的 instruction-aware Q-Former 机制与训练边界。
+
+## 动手学习闭环
+
+基础 patchify/attention/EMA 先在共享基础课程练一次，本篇复用 `edu_core` 或冻结 toy 外围，重点实现论文机制。每个 lesson 已提供中文目标、前置、形状、小例子、编号 TODO 与常见错误；需要时逐级展开 [HINTS.md](HINTS.md)。
+
+```bash
+python3 check_lessons.py --lesson 1                 # 默认 practice，只检查这一关
+python3 check_lessons.py --lesson 1 --implementation reference
+python3 run_instructblip_demo.py --implementation reference          # 默认参考答案
+python3 run_instructblip_demo.py --implementation practice           # 完成所有关后验证自己的闭环
+python3 test_practice_wiring.py
+```
+
+四关依次执行 `--lesson 1` 至 `--lesson 4`。未完成时退出码 2 并指出论文、关卡和函数；不会自动回退参考答案。局部检查包含数值、标签或梯度语义。`practice_instructblip.py` 通过覆写关键方法/注入模块接入练习，复用的只有 mock 专家和外围冻结、损失 shift、贪心循环；生成也调用学生 prefix packing（空 answer），训练步骤调用学生第四关。
+
+两套 token id 显式分开：`instruction_ids` 使用 Q-Former 的 vocab，`llm_prompt_ids/answer_ids` 使用 LLM vocab。这里手工构造 ids，并未实现实际 tokenizer。query 与 instruction 联合 self-attend 后，仅 query cross-attend vision；LLM 接收投影后的 query prefix、有效 prompt、有效 answer，只有 answer 被监督。练习第三关的完整接口返回 embeds/mask/labels，保留旧二参数纯 embedding 拼接入口。
+
+论文依据：[InstructBLIP 论文](https://arxiv.org/abs/2305.06500)、[Salesforce 官方项目与模型](https://github.com/salesforce/LAVIS/tree/main/projects/instructblip)。本课演示 instruction-aware 提取和冻结专家，使用随机 tiny 视觉塔/Q-Former/decoder；没有真实 BLIP-2 预训练权重、BERT query/text 分支结构、26 数据集处理、13 held-out 评测或真实 tokenizer。CPU 通过不代表论文指标复现，真实条件仍见 recipe。
+
+复杂批量拼接已提供验证、循环、去 padding 和右补齐骨架。LLaVA 第二关只需完成单样本替换与监督展开两个 helper；InstructBLIP 第三关拆为投影、单样本拼接、标签三个 helper。局部检查会独立检查每个 helper 并同时报告未完成子任务。

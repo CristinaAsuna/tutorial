@@ -1,4 +1,5 @@
 """CPU checks for Flamingo's interleaved-media teaching implementation."""
+import argparse
 import torch
 
 from conversation import build_interleaved_sft_example, right_pad_examples
@@ -6,7 +7,16 @@ from reference_flamingo import IMAGE_TOKEN_INDEX, build_toy_flamingo
 from edu_core.training import seed_everything
 
 
-def main() -> None:
+def main(implementation="reference") -> None:
+    if implementation == "practice":
+        from practice_flamingo import build_toy_flamingo, connector_training_step
+    else:
+        from reference_flamingo import build_toy_flamingo
+        def connector_training_step(model,optimizer,input_ids,pixel_values,attention_mask,labels):
+            optimizer.zero_grad()
+            out=model(input_ids,pixel_values,attention_mask=attention_mask,labels=labels)
+            out["loss"].backward(); optimizer.step()
+            return out
     seed_everything(23)
     model = build_toy_flamingo(vocab_size=48)
     examples = [
@@ -50,6 +60,8 @@ def main() -> None:
     optimizer.zero_grad(); model(input_ids, images, attention_mask=attention_mask, labels=labels)["loss"].backward()
     assert any(p.grad is not None for p in model.resampler.parameters())
 
+    assert torch.isfinite(connector_training_step(model,optimizer,input_ids,images,attention_mask,labels)["loss"])
+
     model.eval()
     with torch.no_grad():
         first = model.generate(input_ids, images, attention_mask=attention_mask, max_new_tokens=3)
@@ -59,4 +71,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    parser=argparse.ArgumentParser()
+    parser.add_argument("--implementation",choices=("reference","practice"),default="reference")
+    main(parser.parse_args().implementation)

@@ -130,7 +130,7 @@ class FlamingoForConditionalGeneration(nn.Module):
 
     def set_training_stage(self, stage: str) -> None:
         if stage != "connectors":
-            raise ValueError("this paper-faithful toy supports only the frozen-backbone 'connectors' stage")
+            raise ValueError("this frozen-backbone toy supports only the frozen-backbone 'connectors' stage")
         freeze_and_keep_eval(self.vision_encoder)
         self.decoder.freeze_backbone()
         set_requires_grad(self.resampler, True)
@@ -151,7 +151,7 @@ class FlamingoForConditionalGeneration(nn.Module):
         return self.resampler(features.reshape(b, images, features.shape[1], features.shape[2]))
 
     def build_media_attention_mask(self, input_ids: Tensor, num_images: int, attention_mask: Tensor) -> Tensor:
-        """Return ``(B,L,M*R)`` visibility: a token reads images to its left only."""
+        """Return all-seen toy visibility (B,L,M*R), not paper immediate-image masking."""
         if input_ids.ndim != 2 or attention_mask.shape != input_ids.shape:
             raise ValueError("input_ids and attention_mask must both be (B,L)")
         if num_images <= 0:

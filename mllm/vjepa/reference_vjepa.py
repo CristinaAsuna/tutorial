@@ -172,9 +172,13 @@ class VJEPA(nn.Module):
         target_positions = self._select(self.context_encoder.pos_embed.expand(b, -1, -1), target_mask)
         predictions = self.predictor(context_features, target_positions)
         targets = self._select(target_features, target_mask)
-        loss = F.smooth_l1_loss(predictions, targets)
+        loss = self.latent_regression_loss(predictions, targets)
         return {"loss": loss, "predictions": predictions, "targets": targets.detach(),
                 "context_tokens": context_features, "target_mask": target_mask}
+
+    def latent_regression_loss(self, predictions: Tensor, targets: Tensor) -> Tensor:
+        """Explicit replacement point for the student's regression objective."""
+        return F.smooth_l1_loss(predictions, targets)
 
     @torch.no_grad()
     def update_target(self, momentum: float) -> None:

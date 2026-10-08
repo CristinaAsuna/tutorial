@@ -185,9 +185,15 @@ class IJEPA(nn.Module):
             teacher_patches, teacher_grid = self.target_encoder.patch_tokens(images)
             if teacher_grid != grid:
                 raise RuntimeError("student and teacher patch grids differ")
-            targets = self.target_encoder.encode(teacher_patches, all_target_indices)
-        loss = torch.nn.functional.smooth_l1_loss(predictions, targets)
+            full_indices = torch.arange(n, device=teacher_patches.device)
+            full_features = self.target_encoder.encode(teacher_patches, full_indices)
+            targets = full_features.index_select(1, all_target_indices)
+        loss = self.latent_regression_loss(predictions, targets)
         return {"loss": loss, "predictions": predictions, "targets": targets, "context_indices": context_indices, "target_indices": all_target_indices}
+
+    def latent_regression_loss(self, predictions: Tensor, targets: Tensor) -> Tensor:
+        """Explicit replacement point for the student's regression objective."""
+        return torch.nn.functional.smooth_l1_loss(predictions, targets)
 
     @torch.no_grad()
     def update_target_encoder(self, momentum: float) -> None:

@@ -5,11 +5,15 @@ from edu_core.training import seed_everything
 from reference_vjepa import LatentPredictor, MiniVideoViT, VJEPA, sample_spatiotemporal_masks
 
 
-def main() -> None:
+def main(implementation="reference") -> None:
+    from reference_vjepa import MiniVideoViT, LatentPredictor, VJEPA, sample_spatiotemporal_masks
+    if implementation == "practice":
+        from practice_vjepa import MiniVideoViT, LatentPredictor, VJEPA, sample_spatiotemporal_masks, build_toy_vjepa
+        from lesson4_ema_training import vjepa_training_step
     seed_everything(17)
     videos = torch.rand(2, 3, 8, 32, 32)
     encoder = MiniVideoViT(embed_dim=32, depth=1, num_heads=4)
-    model = VJEPA(encoder, LatentPredictor(32, predictor_dim=24, depth=1, num_heads=4))
+    model = build_toy_vjepa() if implementation == "practice" else VJEPA(encoder, LatentPredictor(32, predictor_dim=24, depth=1, num_heads=4))
     target, context = sample_spatiotemporal_masks(2, encoder.base_grid, (1, 2, 2), 2,
                                                    generator=torch.Generator().manual_seed(9))
     out = model(videos, target, context)
@@ -18,12 +22,19 @@ def main() -> None:
     optim = torch.optim.AdamW(list(model.context_encoder.parameters()) + list(model.predictor.parameters()), lr=1e-3)
     teacher_before = next(model.target_encoder.parameters()).detach().clone()
     student_before = next(model.context_encoder.parameters()).detach().clone()
-    optim.zero_grad(); out["loss"].backward()
+    optim.zero_grad()
+    if implementation == "practice":
+        loss = vjepa_training_step(model, videos, target, context, optim, 0.9)
+        assert loss.ndim == 0 and torch.isfinite(loss)
+    else:
+        out["loss"].backward()
     assert any(p.grad is not None for p in model.context_encoder.parameters())
     assert all(p.grad is None for p in model.target_encoder.parameters())
-    optim.step()
+    if implementation == "reference":
+        optim.step()
     assert not torch.equal(student_before, next(model.context_encoder.parameters()))
-    model.update_target(0.9)
+    if implementation == "reference":
+        model.update_target(0.9)
     assert not torch.equal(teacher_before, next(model.target_encoder.parameters()))
     assert not model.target_encoder.training and not any(p.requires_grad for p in model.target_encoder.parameters())
     model.eval()
@@ -35,4 +46,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--implementation", choices=("reference", "practice"), default="reference")
+    args = parser.parse_args()
+    main(args.implementation)

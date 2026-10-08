@@ -148,6 +148,11 @@ class TeacherStudentDINO(nn.Module):
         freeze_and_keep_eval(self.teacher_backbone)
         freeze_and_keep_eval(self.teacher_head)
 
+    def train(self, mode: bool = True):
+        super().train(mode)
+        self._freeze_teacher()
+        return self
+
     def teacher_parameters(self) -> Iterable[nn.Parameter]:
         return list(self.teacher_backbone.parameters()) + list(self.teacher_head.parameters())
 

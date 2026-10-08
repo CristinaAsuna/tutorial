@@ -5,7 +5,15 @@ from edu_core.training import seed_everything
 from reference_instructblip import build_toy_instructblip
 
 
-def main() -> None:
+def main(implementation="reference") -> None:
+    if implementation == "practice":
+        from practice_instructblip import build_toy_instructblip, training_step
+    else:
+        from reference_instructblip import build_toy_instructblip
+        def training_step(model, optimizer, batch):
+            model.train(); optimizer.zero_grad()
+            loss=model(**batch)["loss"]; loss.backward(); optimizer.step()
+            return loss.detach()
     seed_everything(31)
     model = build_toy_instructblip()
     images = torch.randn(2, 3, 8, 8)
@@ -37,12 +45,13 @@ def main() -> None:
 
     model.train()
     optimizer = torch.optim.AdamW([p for p in model.parameters() if p.requires_grad], lr=1e-3)
-    optimizer.zero_grad(); out["loss"].backward()
+    batch=dict(pixel_values=images,instruction_ids=instruction_ids,llm_prompt_ids=prompt_ids,answer_ids=answer_ids,
+               instruction_attention_mask=instruction_mask,llm_prompt_attention_mask=prompt_mask,answer_attention_mask=answer_mask)
+    training_step(model, optimizer, batch)
     assert all(p.grad is None for p in model.vision_encoder.parameters())
     assert all(p.grad is None for p in model.llm.parameters())
     assert any(p.grad is not None for p in model.qformer.parameters())
     assert any(p.grad is not None for p in model.llm_proj.parameters())
-    optimizer.step()
 
     model.eval()
     with torch.no_grad():
@@ -55,4 +64,9 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser=argparse.ArgumentParser()
+    parser.add_argument("--implementation",choices=["reference","practice"],default="reference")
+    args=parser.parse_args()
+    try: main(args.implementation)
+    except NotImplementedError as exc: parser.exit(2,str(exc)+"\n")

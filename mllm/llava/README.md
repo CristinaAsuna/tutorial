@@ -17,7 +17,7 @@ llava/
 └── run_llava_demo.py               # 只测试参考解
 ```
 
-先读并运行参考解，再按四个 lesson 补全 TODO。lesson 故意抛出 `NotImplementedError`；端到端 demo 不依赖它们。
+先运行参考 demo 理解验收目标，再按四个 lesson 独立实现。practice demo 实际依赖你的填答。
 
 ## LLaVA 与 BLIP-2 的关键不同
 
@@ -70,3 +70,23 @@ demo 检查 CLS 丢弃、视觉 token 展开、SFT/padding mask、两个训练�
 ## 教学范围
 
 刻意省略真实 CLIP/LLaMA、LoRA/QLoRA、多图和视频、任意分辨率、图像分块、KV cache、分布式训练及生产 tokenizer。当前接口的明确约束是：每条样本恰好一张图和一个 `<image>` sentinel。
+
+## 动手学习闭环
+
+基础 patchify/attention/EMA 先在共享基础课程练一次，本篇复用 `edu_core` 或冻结 toy 外围，重点实现论文机制。每个 lesson 已提供中文目标、前置、形状、小例子、编号 TODO 与常见错误；需要时逐级展开 [HINTS.md](HINTS.md)。
+
+```bash
+python3 check_lessons.py --lesson 1                 # 默认 practice，只检查这一关
+python3 check_lessons.py --lesson 1 --implementation reference
+python3 run_llava_demo.py --implementation reference          # 默认参考答案
+python3 run_llava_demo.py --implementation practice           # 完成所有关后验证自己的闭环
+python3 test_practice_wiring.py
+```
+
+四关依次执行 `--lesson 1` 至 `--lesson 4`。未完成时退出码 2 并指出论文、关卡和函数；不会自动回退参考答案。局部检查包含数值、标签或梯度语义。`practice_llava.py` 通过覆写关键方法/注入模块接入练习，复用的只有 mock 专家和外围冻结、损失 shift、贪心循环；训练步骤调用学生第四关。
+
+`pack_one_image` 的完整接口包含文本 embedding、attention_mask 和 labels，返回三元组；`assistant_only_labels` 优先接显式 `assistant_mask`，兼容旧 `assistant_start`。单图负 sentinel 不进入 embedding。课程只支持每样本一幅固定尺寸图像，四个 patch，无真实 CLIP/Vicuna、tokenizer、多轮数据、AnyRes、权重兼容或真实 benchmark 复现。两层 GELU projector 对应 LLaVA-1.5；不能把它误认为最初版本的单线性 projector。
+
+论文依据：[Visual Instruction Tuning 官方项目](https://llava-vl.github.io/)、[LLaVA-1.5 Improved Baselines 论文](https://arxiv.org/abs/2310.03744)、[官方代码](https://github.com/haotian-liu/LLaVA)。原始两阶段训练与本课冻结边界对应；所有 toy 随机 token 的 loss/生成只证明机制运行。
+
+复杂批量拼接已提供验证、循环、去 padding 和右补齐骨架。LLaVA 第二关只需完成单样本替换与监督展开两个 helper；InstructBLIP 第三关拆为投影、单样本拼接、标签三个 helper。局部检查会独立检查每个 helper 并同时报告未完成子任务。

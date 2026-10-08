@@ -50,3 +50,25 @@ sees global only     │                              global patches get mask to
 ## 边界与练习
 
 这是最小教学版本，刻意没有数据筛选、超大规模/分布式训练（center 没有 all-reduce）、KoLeo、register tokens、FlashAttention 或真实 DINOv2 权重复现。`lesson*.py` 都故意保留 `NotImplementedError`；先独立完成，再对照参考答案。参考实现会显式拒绝无效 mask ratio、空 masked patch、错误 crop/mask 长度或不匹配的 token shape。
+
+## 从练习到 CPU 闭环
+
+先完成 [基础练习](../foundations/README.md)，再复用 patch/token、attention、EMA；此目录只练论文独有的路由和目标。每个 lesson 提供形状、手算例子、编号步骤与常见错误；卡住时逐层展开 [HINTS.md](HINTS.md)。
+
+```bash
+# 在当前目录执行；使用已安装 torch 的 Python。
+python3 check_lessons.py --lesson 1
+python3 check_lessons.py --lesson 1 --implementation reference
+python3 run_dinov2_demo.py --implementation reference
+python3 run_dinov2_demo.py --implementation practice
+```
+
+`--lesson N` 支持 1–4，只检验指定关卡；省略时遍历全部关卡。指定单关时允许后面的 TODO 未完成。`practice_dino.py` 将实际学生函数装入模型；未完成会显示准确的文件和函数，不会替换为答案。练习完成后，practice demo 与 reference demo 使用相同形状、梯度、参数更新与 teacher 验收。参考解通过只说明基础环境可运行。
+
+## 核对来源与 toy 边界
+
+已核对 [官方 DINO 的 DINOLoss](https://github.com/facebookresearch/dino/blob/main/main_dino.py)：teacher 中心化与 detach、跳过同 global 配对、按有效配对平均和 optimizer 后 teacher EMA。已核对 [官方 DINOv2 iBOT loss](https://github.com/facebookresearch/dinov2/blob/main/dinov2/loss/ibot_patch_loss.py)：masked patch 的软交叉熵。
+
+本 toy 对所有 masked patches 一次平均；官方实现还有按样本 masked 数量加权与 Sinkhorn 等路径。本 toy 保持每样本相同 masked 数，使用同一个 head、简化 center 和批共享 crop；crop scale 控制边长比例，未实现论文完整增广、分布式 center 和 DINOv2 全训练配方。
+
+练习 API：`practice_dino.build_toy_dino()` 返回与 demo 同尺寸的 `TeacherStudentDINO` 模型。DINO criterion 单独使用 `practice_dino.DINOiBOTLoss(32)` 构造。

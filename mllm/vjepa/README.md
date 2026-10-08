@@ -44,3 +44,25 @@ PYTHONPATH=../../general_utils/edu_core \
 ```
 
 真实 V-JEPA 还需要视频数据解码、增广、长 schedule、分布式训练和标准下游评测。这里刻意不实现 V-JEPA 2 的 dense/deep supervision 或 action-conditioned world model，以保持原始 V-JEPA 的教学边界。
+
+## 从练习到 CPU 闭环
+
+先完成 [基础练习](../foundations/README.md)，再复用 patch/token、attention、EMA；此目录只练论文独有的路由和目标。每个 lesson 提供形状、手算例子、编号步骤与常见错误；卡住时逐层展开 [HINTS.md](HINTS.md)。
+
+```bash
+# 在当前目录执行；使用已安装 torch 的 Python。
+python3 check_lessons.py --lesson 1
+python3 check_lessons.py --lesson 1 --implementation reference
+python3 run_vjepa_demo.py --implementation reference
+python3 run_vjepa_demo.py --implementation practice
+```
+
+`--lesson N` 支持 1–4，只检验指定关卡；省略时遍历全部关卡。指定单关时允许后面的 TODO 未完成。`practice_vjepa.py` 将实际学生函数装入模型；未完成会显示准确的文件和函数，不会替换为答案。练习完成后，practice demo 与 reference demo 使用相同形状、梯度、参数更新与 teacher 验收。参考解通过只说明基础环境可运行。
+
+## 核对来源与 toy 边界
+
+已核对 [官方 V-JEPA train.py](https://github.com/facebookresearch/jepa/blob/main/app/vjepa/train.py)：teacher 全视频无梯度编码后取目标区域，context encoder/predictor 使用 masks，optimizer 后 EMA。
+
+本 toy 使用 Smooth-L1 便于延续 I-JEPA；官方 V-JEPA 使用可配置 `abs(z-h)**loss_exp / loss_exp`，因此本例不是论文损失的完整复刻。固定网格、learned positions、等大不重叠 cuboids、精确 complement、合并 target slots、CPU 随机数据也都是教学简化。实践检查会验证原始 tubelet 展平与 Conv3d 投影一致。
+
+练习 API：`practice_vjepa.build_toy_vjepa()` 返回与 demo 同尺寸的 `VJEPA` 模型。模型 forward 返回 dictionary，含 `loss`、`predictions` 和 `targets`；`loss` 使用第 4 关学生回归函数。

@@ -6,14 +6,19 @@ from multicrop import MultiCropAugmentation, make_patch_masks
 from reference_dinov2 import DINOHead, DINOiBOTLoss, MiniViT, TeacherStudentDINO
 
 
-def main() -> None:
+def main(implementation="reference") -> None:
+    from reference_dinov2 import MiniViT, TeacherStudentDINO, DINOiBOTLoss
+    if implementation == "practice":
+        from practice_dino import MiniViT, TeacherStudentDINO, DINOiBOTLoss, make_views_and_masks, build_toy_dino
     seed_everything(7)
     images = torch.rand(2, 3, 40, 40)
-    crops = MultiCropAugmentation(global_size=32, local_size=16)(images)
-    masks = make_patch_masks(crops[:2], patch_size=8, mask_ratio=0.5)
-    masks += [None] * 4
+    if implementation == "practice":
+        crops, masks = make_views_and_masks(images)
+    else:
+        crops = MultiCropAugmentation(global_size=32, local_size=16)(images)
+        masks = make_patch_masks(crops[:2], patch_size=8, mask_ratio=0.5) + [None] * 4
     backbone = MiniViT(image_size=32, patch_size=8, embed_dim=48, depth=2, num_heads=4)
-    model = TeacherStudentDINO(backbone, DINOHead(48, out_dim=32, hidden_dim=64, bottleneck_dim=24))
+    model = build_toy_dino() if implementation == "practice" else TeacherStudentDINO(backbone, DINOHead(48, out_dim=32, hidden_dim=64, bottleneck_dim=24))
     criterion = DINOiBOTLoss(32, warmup_steps=2)
     optimizer = torch.optim.AdamW(list(model.student_backbone.parameters()) + list(model.student_head.parameters()), lr=1e-3)
 
@@ -33,8 +38,12 @@ def main() -> None:
     assert not model.teacher_backbone.training and not any(p.requires_grad for p in model.teacher_parameters())
     assert criterion.center.abs().sum() > 0 and criterion.patch_center.abs().sum() > 0
     print("DINO+iBOT CPU demo passed")
-    print({key: round(float(value), 4) for key, value in result.items()})
+    print({key: round(float(value.detach()), 4) for key, value in result.items()})
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--implementation", choices=("reference", "practice"), default="reference")
+    args = parser.parse_args()
+    main(args.implementation)

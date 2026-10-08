@@ -4,6 +4,50 @@ from torch import nn
 import torch.nn.functional as F
 
 
+def patchify(images: torch.Tensor, patch_size: int = 16) -> torch.Tensor:
+    """BCHW -> (B, H/p*W/p, p*p*C), width fastest; local order (p,p,C).
+
+    Unlike PatchEmbed this is a reversible permutation, with no learned weights.
+    Rectangular images are supported; pass their grid to unpatchify.
+    """
+    if images.ndim != 4 or patch_size <= 0:
+        raise ValueError("images must be BCHW and patch_size positive")
+    b, c, height, width = images.shape
+    p = patch_size
+    if min(c, height, width) <= 0 or height % p or width % p:
+        raise ValueError("positive image H/W must be divisible by patch_size")
+    h, w = height // p, width // p
+    return images.reshape(b, c, h, p, w, p).permute(0, 2, 4, 3, 5, 1).reshape(b, h*w, p*p*c)
+
+
+def unpatchify(patches: torch.Tensor, patch_size: int = 16, channels: int = 3,
+              *, grid: tuple[int, int] | None = None) -> torch.Tensor:
+    """Inverse of patchify; omitted grid requires a square patch grid."""
+    if patches.ndim != 3 or patch_size <= 0 or channels <= 0:
+        raise ValueError("patches must be BND; patch_size/channels must be positive")
+    b, n, d = patches.shape
+    p, c = patch_size, channels
+    if grid is None:
+        side = int(n ** 0.5)
+        grid = (side, side)
+    h, w = grid
+    if min(h, w) <= 0 or h*w != n or d != p*p*c:
+        raise ValueError("grid and patch width must match N and patch_size**2 * channels")
+    return patches.reshape(b, h, w, p, p, c).permute(0, 5, 1, 3, 2, 4).reshape(b, c, h*p, w*p)
+
+
+def tubelet_patchify(videos: torch.Tensor, tubelet: int = 2, patch: int = 16) -> torch.Tensor:
+    """BCTHW -> (B, T/t*H/p*W/p, t*p*p*C); local order (t,p,p,C)."""
+    if videos.ndim != 5 or tubelet <= 0 or patch <= 0:
+        raise ValueError("videos must be BCTHW and tubelet/patch positive")
+    b, c, frames, height, width = videos.shape
+    t, p = tubelet, patch
+    if min(c, frames, height, width) <= 0 or frames % t or height % p or width % p:
+        raise ValueError("positive video T/H/W must be divisible by tubelet/patch")
+    nt, nh, nw = frames // t, height // p, width // p
+    return videos.reshape(b, c, nt, t, nh, p, nw, p).permute(0, 2, 4, 6, 3, 5, 7, 1).reshape(b, nt*nh*nw, t*p*p*c)
+
+
 class PatchEmbed(nn.Module):
     def __init__(self, in_chans: int, embed_dim: int, patch_size: int):
         super().__init__()
