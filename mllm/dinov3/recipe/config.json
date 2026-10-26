@@ -1,0 +1,51 @@
+{
+  "paper": "dinov3_gram",
+  "data_root": "/path/to/curated_rgb_images",
+  "data_version": "record_your_manifest_hash",
+  "model": {
+    "backbone": "use_official_dinov3_architecture_for_full_reproduction",
+    "patch_size": 14,
+    "prototypes": 65536,
+    "separate_heads": true
+  },
+  "augmentation": {
+    "global_crops": 2,
+    "local_crops": 8,
+    "photometric": "official_recipe_required"
+  },
+  "masking": {
+    "sample_probability": 0.5,
+    "ratio_range": [
+      0.1,
+      0.5
+    ],
+    "pattern": "block"
+  },
+  "targets": "sinkhorn_knopp",
+  "optimization": {
+    "teacher_temp_start": 0.04,
+    "teacher_temp_end": 0.07,
+    "teacher_momentum_start": 0.994,
+    "optimizer": "adamw",
+    "lr_warmup": "record_steps",
+    "weight_decay": "cosine"
+  },
+  "runtime": {
+    "precision": "mixed",
+    "distributed": "official_fsdp",
+    "target_sync": "global_assignments"
+  },
+  "evaluation": [
+    "knn",
+    "linear_probe",
+    "dense_probe"
+  ],
+  "gram": {
+    "snapshot_step": 200000,
+    "refine_start": 1000000,
+    "refresh_every": 10000,
+    "resolution_factor": 2,
+    "reduction": "mean",
+    "remove_neg": true
+  }
+}

@@ -25,15 +25,19 @@ def check(lesson, implementation):
         assert model.mask_token.grad is not None, 'mask token 未参与计算'
     elif lesson == 2:
         from multicrop import MultiCropAugmentation, make_patch_masks
+        from augmentation_checks import check_multicrop
         if reference:
-            views = MultiCropAugmentation()(torch.randn(2,3,40,40))
-            mask = make_patch_masks([torch.zeros(2,3,16,16)],8,.5)[0]
+            views_fn = MultiCropAugmentation()
+            def mask_fn(b,n,r,device):
+                return make_patch_masks([torch.zeros(b,3,8,8*n,device=device)],8,r)[0]
         else:
-            from lesson2_multicrop_masking import make_multicrop_views, random_patch_mask
-            views = make_multicrop_views(torch.randn(2,3,40,40))
-            mask = random_patch_mask(2,4,.5,torch.device('cpu'))
-        assert len(views)==6 and all(v.shape==(2,3,32,32) for v in views[:2]) and all(v.shape==(2,3,16,16) for v in views[2:]), 'crop 顺序/尺寸错误'
-        assert mask.dtype==torch.bool and mask.shape==(2,4) and (mask.sum(1)==2).all(), '每样本必须精确两 masked patches'
+            from lesson2_multicrop_masking import make_multicrop_views as views_fn, random_patch_mask as mask_fn
+        check_multicrop(views_fn,mask_fn)
+        if not reference:
+            from lesson2_multicrop_masking import crop_given_boxes
+            x=torch.arange(16.).reshape(1,1,4,4)
+            actual=crop_given_boxes(x,torch.tensor([[1,2,2,2]]),2)
+            torch.testing.assert_close(actual,x[:,:,1:3,2:4])
     elif lesson == 3:
         from lesson3_dino_loss import dino_cross_view_loss, update_center
         students = [torch.tensor([[1.,-1.]],requires_grad=True),torch.tensor([[0.,2.]],requires_grad=True),torch.tensor([[3.,0.]],requires_grad=True)]

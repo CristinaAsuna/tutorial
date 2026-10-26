@@ -11,6 +11,7 @@ dependencies = ["torch>=2.1"]
 
 [project.optional-dependencies]
 dev = ["pytest>=7"]
+pretrained = ["transformers>=5.15,<5.16", "huggingface-hub>=1.27,<2", "safetensors>=0.8", "Pillow>=12", "torchvision>=0.28"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

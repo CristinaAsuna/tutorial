@@ -3,7 +3,7 @@
 前置：PatchEmbed、attention 基础关。
 形状合同：[B,3,H,W] → CLS [B,D], patches [B,N,D]。
 手算例子：P=2,H=W=4 时 N=4；加 CLS 后序列长 5。
-编号 TODO：1. 建立 patch/CLS/mask/position 参数。2. mask 替换。3. 插值位置。4. Transformer 和输出切片。
+参数与Transformer骨架已提供。编号 TODO：1. 用mask token替换patch。2. 拼CLS并加入按网格插值的位置。
 常见错误：CLS 不属于 patch mask；先插值 patch 网格再拼 CLS 位置。
 检查：python3 check_lessons.py --lesson 1 --implementation practice
 提示：HINTS.md 第 1 关；参考检查可加 --implementation reference。
@@ -17,7 +17,7 @@ class ExerciseViT(nn.Module):
         super().__init__()
         self.patch_size, self.embed_dim = patch_size, embed_dim
         from edu_core.vision import PatchEmbed
-        from reference_dinov2 import AttentionBlock
+        from edu_core.attention import SelfAttentionBlock as AttentionBlock
         self.patch_embed = PatchEmbed(in_chans, embed_dim, patch_size)
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
         self.mask_token = nn.Parameter(torch.zeros(1, 1, embed_dim))

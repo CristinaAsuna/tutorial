@@ -85,8 +85,21 @@ python3 test_practice_wiring.py
 
 四关依次执行 `--lesson 1` 至 `--lesson 4`。未完成时退出码 2 并指出论文、关卡和函数；不会自动回退参考答案。局部检查包含数值、标签或梯度语义。`practice_llava.py` 通过覆写关键方法/注入模块接入练习，复用的只有 mock 专家和外围冻结、损失 shift、贪心循环；训练步骤调用学生第四关。
 
-`pack_one_image` 的完整接口包含文本 embedding、attention_mask 和 labels，返回三元组；`assistant_only_labels` 优先接显式 `assistant_mask`，兼容旧 `assistant_start`。单图负 sentinel 不进入 embedding。课程只支持每样本一幅固定尺寸图像，四个 patch，无真实 CLIP/Vicuna、tokenizer、多轮数据、AnyRes、权重兼容或真实 benchmark 复现。两层 GELU projector 对应 LLaVA-1.5；不能把它误认为最初版本的单线性 projector。
+`pack_one_image` 的完整接口包含文本 embedding、attention_mask 和 labels，返回三元组；`assistant_only_labels` 以显式 `assistant_mask` 标记监督位置。单图负 sentinel 不进入 embedding。课程只支持每样本一幅固定尺寸图像，四个 patch，无真实 CLIP/Vicuna、tokenizer、多轮数据、AnyRes、权重兼容或真实 benchmark 复现。两层 GELU projector 对应 LLaVA-1.5；不能把它误认为最初版本的单线性 projector。
 
 论文依据：[Visual Instruction Tuning 官方项目](https://llava-vl.github.io/)、[LLaVA-1.5 Improved Baselines 论文](https://arxiv.org/abs/2310.03744)、[官方代码](https://github.com/haotian-liu/LLaVA)。原始两阶段训练与本课冻结边界对应；所有 toy 随机 token 的 loss/生成只证明机制运行。
 
 复杂批量拼接已提供验证、循环、去 padding 和右补齐骨架。LLaVA 第二关只需完成单样本替换与监督展开两个 helper；InstructBLIP 第三关拆为投影、单样本拼接、标签三个 helper。局部检查会独立检查每个 helper 并同时报告未完成子任务。
+
+
+## 可复用预训练组件（2026-10-16）
+
+[基础模型接口小课](../backbones/README.md)提供统一的显式下载、本地加载、图像/语言与K/V合同。
+本课程默认toy与已有lesson签名保持；可选组件模式继续调用课程的projector/packing/训练机制，不直接用原生VLM输出代替。
+
+```bash
+PYTHONPATH=general_utils/edu_core python3 mllm/llava/run_backbone_demo.py
+PYTHONPATH=general_utils/edu_core python3 mllm/llava/run_backbone_demo.py --implementation practice
+```
+
+SmolVLM模式复用真实SigLIP塔与语言模型，随机projector仍需学习。CPU测试将raw patches平均池化至4×4；兼容wrapper补一个随后会被旧lesson剥离的合成mean/CLS槽，不声称SigLIP原生有CLS。视觉/语言注册互不重叠的子模块，冻结视觉不会误冻语言；冻结语言时仍保留projector输入梯度。这是组件接线测试，不是原始CLIP/Llama权重或图文效果复现。

@@ -24,3 +24,5 @@ Mask 统一约定为：布尔值 `True` 或数值 `1` 表示该 key/token 有效
 |`update_ema(teacher,student,m)`|原地更新 teacher 参数|不更新 buffers；调用方负责参数对应、optimizer 后更新及冻结策略|
 
 旧 `TransformerBlock` 继续保留自注意力加可选交叉注意力接口。共享包不包含论文的 target 采样、teacher 策略或损失；现有 checkpoint 的参数布局不因新增组件自动转换。
+
+可选 `edu_core.backbones` 提供视觉特征、语言embedding/logits、显式mask和逐层K/V合同；导入tiny路径不加载transformers。预训练依赖使用 `pip install -e 'general_utils/edu_core[pretrained]'`（从仓库根），权重显式下载后只读本地缓存。接口教学、模型revision及三篇课程的运行入口见[基础模型小课](../../mllm/backbones/README.md)。π0自己的flow目标、双流路由、专家和控制仍留在课程，不进入共享包。

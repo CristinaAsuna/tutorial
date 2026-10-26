@@ -14,6 +14,8 @@
 
 先阅读 `docs/paper_workflow.md`、项目记忆索引、现有共享组件和一个相近课程。默认交付中文推导、细步骤 TODO、三级提示、参考实现、真正调用学生代码的 practice、逐关检查、CPU demo 和真实复现路线。
 
+已安装 `paper-algorithm-tutorial` skill 时使用它，并按其 tutorial 仓库适配说明工作；可显式输入 `$paper-algorithm-tutorial 论文名称`。skill 未提供时继续使用 `docs/paper_workflow.md`，不依赖前一 session 的聊天记录。
+
 先检索原论文和官方实现确定版本，简要说明识别结果后继续；只有同名论文/版本会实质改变机制且无法合理确定时，才询问题名、年份或链接。沿用现有教学范围，不覆盖已有填答。按领域放置新课程，并更新课程地图与验收入口。
 
 遵守当前 session 的工作模式；规划模式先形成具体方案，执行模式完成实现和验证。本约定不授权购买资源、上传数据或提交/推送 Git。

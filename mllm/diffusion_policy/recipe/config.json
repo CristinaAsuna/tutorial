@@ -1,0 +1,38 @@
+{
+  "paper": "DiffusionPolicy-RSS2023",
+  "implementation": "external_official",
+  "dataset": {
+    "task": "pusht_image",
+    "root": "data/pusht_cchi_v7_replay.zarr",
+    "format": "official_episode_replay_zarr",
+    "action_dim": 2,
+    "action_representation": "absolute_position",
+    "split_by_episode": true,
+    "normalization": "train_split_limits",
+    "boundary_padding": "repeat"
+  },
+  "policy": {
+    "backbones": ["cnn", "transformer"],
+    "obs_horizon": 2,
+    "pred_horizon": 16,
+    "action_horizon": 8,
+    "execution_offset": "obs_horizon_minus_one",
+    "conditioning": "observations_only",
+    "prediction_type": "epsilon",
+    "beta_schedule": "squaredcos_cap_v2",
+    "diffusion_steps": 100,
+    "inference_sampler": "ddpm",
+    "ema": true
+  },
+  "training": {
+    "official_workspace": "train_diffusion_unet_hybrid_workspace",
+    "transformer_workspace": "train_diffusion_transformer_hybrid_workspace",
+    "stats_from_train_split_only": true,
+    "seed": 42
+  },
+  "evaluation": {
+    "environment": "official_PushT",
+    "metric": "target_coverage",
+    "checkpoint_selection": "record_last_and_best_separately"
+  }
+}

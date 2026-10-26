@@ -1,0 +1,17 @@
+"""Exercise entrypoints for isolated checks and maintenance substitutes."""
+GROUPS = [('lesson1_trajectory_windows',
+  ['trajectory_window', 'fit_bounds', 'normalize', 'unnormalize']),
+ ('lesson2_forward_diffusion', ['cosine_schedule', 'add_noise']),
+ ('lesson3_observation_condition', ['encode_observations']),
+ ('lesson4_conditional_unet',
+  ['timestep_embedding',
+   'film_modulate',
+   'residual_forward',
+   'unet_down',
+   'unet_up',
+   'unet_forward']),
+ ('lesson5_noise_training', ['noise_loss', 'training_step']),
+ ('lesson6_reverse_sampling', ['ddpm_step', 'ddim_step', 'sample_actions']),
+ ('lesson7_receding_control', ['execution_chunk', 'receding_rollout']),
+ ('lesson8_transformer_extension',
+  ['transformer_masks', 'transformer_tokens', 'transformer_forward'])]

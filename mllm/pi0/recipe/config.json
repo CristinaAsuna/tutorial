@@ -1,0 +1,10 @@
+{
+  "paper": "pi0-2024-original",
+  "mode": "external_official",
+  "model": {"family": "PaliGemma-plus-action-expert", "pi05": false, "action_horizon": 50},
+  "actions": {"dimension": 7, "representation": "dataset_specific_absolute_joint_targets", "normalization": "training_statistics", "execute_steps": 10},
+  "flow": {"noise_time": 1, "data_time": 0, "target": "noise_minus_actions", "time_distribution": "0.999*Beta(1.5,1)+0.001", "euler_steps": 10, "prefix_cache": true},
+  "dataset": {"root": "data/pi0_robot_episodes", "split_by_episode": true, "camera_order": ["base", "wrist"], "state_and_action_units_required": true},
+  "training": {"route": "official_openpi_finetuning", "freeze_backbone": false},
+  "evaluation": {"route": "matched_dataset_official_rollout", "metrics": ["offline_action_error", "task_success_rate"]}
+}

@@ -8,7 +8,7 @@ import lesson1_vit as l1
 import lesson2_multicrop_masking as l2
 import lesson3_dino_loss as l3
 import lesson4_ibot_teacher_student as l4
-from multicrop import MultiCropAugmentation
+from multicrop import MultiCropAugmentation, crop_and_resize
 from edu_core.vision import interpolate_2d_pos_embed
 
 
@@ -24,7 +24,9 @@ def test_practice_calls_all_lessons(monkeypatch):
     seen=set()
     def replace(self,p,m):seen.add(1);return p if m is None else torch.where(m.unsqueeze(-1),self.mask_token.expand_as(p),p)
     def positions(self,p,g):return torch.cat((self.cls_token.expand(p.shape[0],-1,-1),p),1)+interpolate_2d_pos_embed(self.pos_embed,g)
-    def views(x):seen.add(2);return MultiCropAugmentation()(x)
+    original_views=l2.make_multicrop_views
+    def crop(x,boxes,size):seen.add("crop");return crop_and_resize(x,boxes,size)
+    def views(x):seen.add(2);return original_views(x)
     def masks(b,n,r,device):
         m=torch.zeros(b,n,dtype=torch.bool,device=device);m[:,:max(1,round(n*r))]=True;return m
     def dino(s,t,c,st,tt):
@@ -34,7 +36,7 @@ def test_practice_calls_all_lessons(monkeypatch):
     def ema(t,s,m):
         with torch.no_grad():
             for a,b in zip(t,s):a.mul_(m).add_(b,alpha=1-m)
-    monkeypatch.setattr(l1.ExerciseViT,'replace_masked_patches',replace);monkeypatch.setattr(l1.ExerciseViT,'add_cls_and_positions',positions);monkeypatch.setattr(l2,'make_multicrop_views',views);monkeypatch.setattr(l2,'random_patch_mask',masks);monkeypatch.setattr(l3,'dino_cross_view_loss',dino);monkeypatch.setattr(l3,'update_center',center);monkeypatch.setattr(l4,'ibot_masked_patch_loss',ibot);monkeypatch.setattr(l4,'ema_update',ema)
+    monkeypatch.setattr(l1.ExerciseViT,'replace_masked_patches',replace);monkeypatch.setattr(l1.ExerciseViT,'add_cls_and_positions',positions);monkeypatch.setattr(l2,'crop_given_boxes',crop);monkeypatch.setattr(l2,'make_multicrop_views',views);monkeypatch.setattr(l2,'random_patch_mask',masks);monkeypatch.setattr(l3,'dino_cross_view_loss',dino);monkeypatch.setattr(l3,'update_center',center);monkeypatch.setattr(l4,'ibot_masked_patch_loss',ibot);monkeypatch.setattr(l4,'ema_update',ema)
     import run_dinov2_demo
     run_dinov2_demo.main('practice')
-    assert seen=={1,2,3,4}
+    assert seen=={1,2,3,4,"crop"}

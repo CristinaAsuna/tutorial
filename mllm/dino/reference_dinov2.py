@@ -7,7 +7,6 @@ patch prediction.
 from __future__ import annotations
 
 import copy
-import math
 from typing import Iterable, Sequence
 
 import torch
@@ -16,45 +15,9 @@ import torch.nn.functional as F
 from edu_core.training import freeze_and_keep_eval, update_ema
 
 
-class PatchEmbed(nn.Module):
-    def __init__(self, in_chans: int = 3, embed_dim: int = 192, patch_size: int = 16):
-        super().__init__()
-        self.patch_size = patch_size
-        self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size)
-
-    def forward(self, images: Tensor) -> tuple[Tensor, tuple[int, int]]:
-        if images.ndim != 4:
-            raise ValueError("images must have shape [batch, channels, height, width]")
-        h, w = images.shape[-2:]
-        if h % self.patch_size or w % self.patch_size:
-            raise ValueError("image height and width must be divisible by patch_size")
-        x = self.proj(images)
-        grid = x.shape[-2:]
-        return x.flatten(2).transpose(1, 2), grid
-
-
-class AttentionBlock(nn.Module):
-    """Pre-LayerNorm transformer block, written without hiding the attention."""
-    def __init__(self, dim: int, num_heads: int, mlp_ratio: float = 4.0):
-        super().__init__()
-        if dim % num_heads:
-            raise ValueError("dim must be divisible by num_heads")
-        self.norm1 = nn.LayerNorm(dim)
-        self.qkv = nn.Linear(dim, dim * 3)
-        self.proj = nn.Linear(dim, dim)
-        self.norm2 = nn.LayerNorm(dim)
-        hidden = int(dim * mlp_ratio)
-        self.mlp = nn.Sequential(nn.Linear(dim, hidden), nn.GELU(), nn.Linear(hidden, dim))
-        self.num_heads = num_heads
-        self.head_dim = dim // num_heads
-
-    def forward(self, x: Tensor) -> Tensor:
-        b, n, d = x.shape
-        qkv = self.qkv(self.norm1(x)).reshape(b, n, 3, self.num_heads, self.head_dim)
-        q, k, v = qkv.unbind(dim=2)
-        attention = (q.transpose(1, 2) @ k.transpose(1, 2).transpose(-2, -1)) / math.sqrt(self.head_dim)
-        x = x + self.proj((attention.softmax(dim=-1) @ v.transpose(1, 2)).transpose(1, 2).reshape(b, n, d))
-        return x + self.mlp(self.norm2(x))
+# Compatibility names; implementations live in the shared foundations package.
+from edu_core.vision import PatchEmbed, interpolate_2d_pos_embed
+from edu_core.attention import SelfAttentionBlock as AttentionBlock
 
 
 class MiniViT(nn.Module):
@@ -84,14 +47,7 @@ class MiniViT(nn.Module):
                     nn.init.zeros_(module.bias)
 
     def interpolated_pos_embed(self, grid: tuple[int, int]) -> Tensor:
-        cls_pos, patch_pos = self.pos_embed[:, :1], self.pos_embed[:, 1:]
-        old = int(math.sqrt(patch_pos.shape[1]))
-        if old * old != patch_pos.shape[1]:
-            raise RuntimeError("base position embedding must be a square grid")
-        patch_pos = patch_pos.reshape(1, old, old, -1).permute(0, 3, 1, 2)
-        patch_pos = F.interpolate(patch_pos, size=grid, mode="bicubic", align_corners=False)
-        patch_pos = patch_pos.permute(0, 2, 3, 1).reshape(1, grid[0] * grid[1], -1)
-        return torch.cat((cls_pos, patch_pos), dim=1)
+        return interpolate_2d_pos_embed(self.pos_embed, grid)
 
     def forward(self, images: Tensor, patch_mask: Tensor | None = None) -> tuple[Tensor, Tensor]:
         patches, grid = self.patch_embed(images)
@@ -187,12 +143,14 @@ class TeacherStudentDINO(nn.Module):
 
 
 class DINOiBOTLoss(nn.Module):
-    def __init__(self, out_dim: int, student_temp: float = 0.1, teacher_temp: float = 0.04,
-                 warmup_teacher_temp: float = 0.1, warmup_steps: int = 10,
+    def __init__(self, out_dim: int, student_temp: float = 0.1, teacher_temp: float = 0.07,
+                 warmup_teacher_temp: float = 0.04, warmup_steps: int = 10,
                  center_momentum: float = 0.9, ibot_weight: float = 1.0):
         super().__init__()
         if student_temp <= 0 or teacher_temp <= 0 or warmup_teacher_temp <= 0:
             raise ValueError("temperatures must be positive")
+        if warmup_steps < 0 or not 0 <= center_momentum <= 1 or ibot_weight < 0:
+            raise ValueError("invalid warmup, center momentum or loss weight")
         self.student_temp, self.teacher_temp = student_temp, teacher_temp
         self.warmup_teacher_temp, self.warmup_steps = warmup_teacher_temp, warmup_steps
         self.center_momentum, self.ibot_weight = center_momentum, ibot_weight
@@ -200,6 +158,8 @@ class DINOiBOTLoss(nn.Module):
         self.register_buffer("patch_center", torch.zeros(1, out_dim))
 
     def current_teacher_temp(self, step: int) -> float:
+        if step < 0:
+            raise ValueError("step must be nonnegative")
         if self.warmup_steps <= 0 or step >= self.warmup_steps:
             return self.teacher_temp
         alpha = step / self.warmup_steps

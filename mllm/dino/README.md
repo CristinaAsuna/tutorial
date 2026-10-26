@@ -1,8 +1,8 @@
-# 从零手写 DINOv2 核心：DINO + iBOT
+# 从零手写 DINO + iBOT：入门机制课
 
 > 共享基础包：先执行 `python3 -m pip install -e "../../general_utils/edu_core[dev]"`。顶层内容是 CPU toy；`recipe/` 记录真实 DINO/iBOT 训练所需条件及 DINOv2 不可严格公开复现的边界。
 
-这是一个面向理解的数据流教学实现：不下载数据集、不依赖 torchvision，也不复刻完整生产版 DINOv2。它自写一个最小 ViT，跑通多裁剪自蒸馏、EMA teacher、centering / temperature，以及 iBOT 的 masked patch prediction。
+这是一个面向理解的数据流教学实现：不下载数据集、不依赖 torchvision，也不复刻完整生产版 DINOv2。它用共享基础组件组装一个最小 ViT，跑通多裁剪自蒸馏、EMA teacher、centering / temperature，以及 iBOT 的 masked patch prediction。
 
 ```text
 dino/
@@ -19,7 +19,7 @@ dino/
 
 ```bash
 cd /Users/max/codebase/scratch/tutorial/mllm/dino
-python run_dinov2_demo.py
+python3 run_dinov2_demo.py
 ```
 
 demo 固定随机种子、用两张 `40×40` 随机 RGB 图像，在 CPU 上完成：student 前向与反传、optimizer step、teacher EMA、CLS center 与 patch center 更新。它还断言 student 有梯度和更新、teacher 永远 eval/冻结但会随 EMA 改变。
@@ -45,11 +45,11 @@ sees global only     │                              global patches get mask to
 - DINO：teacher 的两个 global CLS 分布是 soft target；student 全部六个 CLS 都参与匹配。仅跳过 global-0 对 global-0、global-1 对 global-1 的同视图配对。
 - iBOT：teacher 对相同 global view 的**未遮蔽** patch 给 soft target；student 输入中相应 patch 被替换为可学习的 `mask_token`。损失严格只取 `mask=True` 的位置。
 - Teacher：由 student 初始化，始终 `eval()` 且 `requires_grad=False`。每一次 `optimizer.step()` 后执行 `teacher = momentum * teacher + (1-momentum) * student`。
-- Center：`center` 与 `patch_center` 是 buffer，不参与优化；分别取本 batch teacher CLS/patch logits 的均值后做 EMA，进入 teacher softmax 前减去它们。teacher temperature 可从较高值 warm up 到目标值。
+- Center：`center` 与 `patch_center` 是 buffer，不参与优化；分别取本 batch teacher CLS/patch logits 的均值后做 EMA，进入 teacher softmax 前减去它们。teacher temperature 默认从 0.04 线性升至 0.07；step=0 为起点，step=warmup_steps 到达终点。
 
 ## 边界与练习
 
-这是最小教学版本，刻意没有数据筛选、超大规模/分布式训练（center 没有 all-reduce）、KoLeo、register tokens、FlashAttention 或真实 DINOv2 权重复现。`lesson*.py` 都故意保留 `NotImplementedError`；先独立完成，再对照参考答案。参考实现会显式拒绝无效 mask ratio、空 masked patch、错误 crop/mask 长度或不匹配的 token shape。
+这是入门机制版本，后续算法增量见 [DINOv2 六关](../dinov2/README.md) 和 [DINOv3 Gram anchoring](../dinov3/README.md)。本课刻意没有数据筛选、超大规模/分布式训练（center 没有 all-reduce）、KoLeo、register tokens、FlashAttention 或真实 DINOv2 权重复现。`lesson*.py` 都故意保留 `NotImplementedError`；先独立完成，再对照参考答案。参考实现会显式拒绝无效 mask ratio、空 masked patch、错误 crop/mask 长度或不匹配的 token shape。
 
 ## 从练习到 CPU 闭环
 
@@ -69,6 +69,14 @@ python3 run_dinov2_demo.py --implementation practice
 
 已核对 [官方 DINO 的 DINOLoss](https://github.com/facebookresearch/dino/blob/main/main_dino.py)：teacher 中心化与 detach、跳过同 global 配对、按有效配对平均和 optimizer 后 teacher EMA。已核对 [官方 DINOv2 iBOT loss](https://github.com/facebookresearch/dinov2/blob/main/dinov2/loss/ibot_patch_loss.py)：masked patch 的软交叉熵。
 
-本 toy 对所有 masked patches 一次平均；官方实现还有按样本 masked 数量加权与 Sinkhorn 等路径。本 toy 保持每样本相同 masked 数，使用同一个 head、简化 center 和批共享 crop；crop scale 控制边长比例，未实现论文完整增广、分布式 center 和 DINOv2 全训练配方。
+本 toy 对所有 masked patches 一次平均；官方实现还有按样本 masked 数量加权与 Sinkhorn 等路径。本 toy 保持每样本相同 masked 数，使用同一个 head、简化 center；逐样本采样 crop，crop scale 控制面积比例，未实现论文完整增广、分布式 center 和 DINOv2 全训练配方。
 
 练习 API：`practice_dino.build_toy_dino()` 返回与 demo 同尺寸的 `TeacherStudentDINO` 模型。DINO criterion 单独使用 `practice_dino.DINOiBOTLoss(32)` 构造。
+
+## 本轮更新与兼容性
+
+逐样本几何crop使用面积比例和宽高比采样；第2关先实现确定性 `crop_given_boxes`，外围采样已提供。默认温度从`.04`升至`.07`，warmup步数表示从step=0到step=warmup_steps之间的间隔。
+
+参考与练习现在统一复用 `edu_core.PatchEmbed`、`SelfAttentionBlock` 和二维位置插值。旧参考模型的fused-qkv参数名与新block不同，**旧checkpoint不直接兼容**，load_state_dict保持strict检查，不提供静默转换。teacher head仍通过teacher_copy重建，避免legacy weight_norm非叶张量deepcopy问题。
+
+第2关验收检查裁剪内容、逐样本随机性、种子可复现与mask随机性；全零crop和固定位置mask均应失败。维护用接线测试仍只是模拟填答后的路由，不写回lesson、不表示学习者完成。

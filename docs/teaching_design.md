@@ -27,6 +27,35 @@ MAE、BLIP-2 不做整套课程重写。已有学生填答必须保留，README 
 
 先完成练习验收，再根据 recipe 明确原始论文版本、数据许可与格式、预训练权重、硬件预算、评估协议。toy 使用的精确补集、固定 crop 或简化多图可见性不自动成为论文原始合同。
 
+## OpenVLA / Diffusion Policy 课程（2026-10-16）
+
+新增原始 OpenVLA（2024）六关与 Diffusion Policy（RSS 2023）八关。Diffusion Policy 采用 CNN/FiLM 主线和完整 Transformer 扩展；两者共享轨迹、噪声日程、loss、EMA、采样和滚动控制。属于 embodied policy 教学，放在 mllm，论文专属 scheduler/动作 tokenizer 不提升为 edu_core。
+
+初始化与批量外围单独提供于各篇 scaffolding.py；参考计算是独立函数，practice 显式构造所有 lesson 的 ops，并传入模型/网络，没有异常回退或运行时产品 monkeypatch。局部检查只替换选中关，提供其余参考外围以便独立练习；全 practice 始终使用全部学生机制。维护接线测试中的替身不写回 lesson，兼容后续学生填答。
+
+OpenVLA 保留官方 256 边界/255 中心的离散行为、BOS 后插入视觉、动作与默认 EOS 监督、全词表生成、全参数梯度；toy 视觉与 LM 不兼容官方 checkpoint。Diffusion Policy 保留 square-cosine/epsilon 目标、EMA、观测缓存、DDPM/DDIM、To-1 执行起点和 Transformer 时间对齐 mask；单次随机 toy 不证明分布拟合或任务成功。两篇 recipe 均是外部官方实验路线与 metadata 骨架，没有隐藏的真实 trainer/rollout 实现。
+
+## π0与可复用基础模型接口（2026-10-16）
+
+新增原始π0七关：多相机/状态、prefix与suffix、三块mask/有效位置、逐层双流QKV、flow目标、训练更新、缓存Euler与重规划。统一采用openpi的t=1噪声、t=0动作、速度noise-actions与负Euler步长；避免将论文相反时间记号与代码混用。tiny骨干端到端训练，预训练SmolVLM测试冻结骨干、训练窄expert，分别记录证据。
+
+共享edu_core.backbones按视觉、语言和分层K/V能力拆接口。初始化和 projected attention/RoPE 基础归共享包，π0自己的路由、损失、采样和训练留在课程。显式PrefixEncoding缓存不追加suffix，训练缓存保留梯度；tiny完整联合计算与缓存路径比较输出及梯度。参数初始化提供于scaffolding，student ops包含loss、训练步和采样，不回退参考答案。
+
+用户选择先接入π0、LLaVA、OpenVLA，下载SmolVLM-256M。真实模型只由显式download命令获取，固定SHA记录在HF cache，运行local-only，默认离线验收不依赖transformers。loader尊重实际checkpoint的Idefics3架构并检查所有权重key，不以随机权重冒充预训练。LLaVA复用不重叠的vision/language子模块、保留projector/packing，使用有说明的patch pooling/合成CLS桥；OpenVLA只替换LM，并显式映射到256个非特殊动作ID，双视觉练习仍为toy。
+
+全仓库审查见backbone_audit.md。BLIP系后续可适配raw vision/embedding forward，Flamingo还需逐层插入接口，视频JEPA需要独立视频能力；本次不为统一而覆盖旧课填答或改checkpoint布局。基础接口小课提供形状、mask、梯度、KV和实际模型的动手步骤。
+
 ## 新 session 的论文名称入口
 
 2026-10-08 确定：在本仓库的新 session 中，仅输入论文名称默认请求生成或完善教学课程。根 AGENTS.md 指向 paper_workflow.md，携带学习者定位、提示深度、交付物和验证要求；不依赖前一 session 的聊天记录。只有论文身份存在实质歧义时再问，其他教学偏好沿用本仓库默认值。该工作流尚未通过独立新 session 的端到端行为验证。
+
+
+## DINO家族递进设计（2026-10-17）
+
+旧dino仍为DINO+iBOT入门；dinov2新增六关，dinov3为第4节Gram机制五关，不覆盖完整DINOv3架构。保留已有学生代码；本次只在空的DINO裁剪TODO中提供随机采样外围和新的确定性微任务。
+
+通用patch/encoder/位置插值复用edu_core，家族heads、增广、目标和teacher策略留在论文目录。DINO共享block后参数布局改变，旧fused-qkv checkpoint不静默兼容。新课程使用根目录python -m入口；runner为子进程提供仓库根与共享包路径，不在产品代码修改sys.path。
+
+机制验收覆盖内容关联、随机性、SK边际、不同mask数量的逐行归约、近邻排除自身、Gram不变性、梯度边界与快照时间轴。三层提示提供实际操作和伪代码，不把查看参考解作为唯一帮助。维护用替身接线与学生实际完成分开记录。
+
+8步合成训练输出熵、特征方差与patch关系SVG，只用于诊断；不强制随机loss下降，不将短训练称为dense退化/修复复现。真实数据、完整架构和分布式路径在recipe说明为尚未实现的迁移工作。

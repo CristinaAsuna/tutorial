@@ -4,6 +4,8 @@
 
 在 Codex 中选择 `/Users/max/codebase/scratch/tutorial` 项目并新建 session，输入论文名称、算法名或链接即可，例如 `I-JEPA`。根 AGENTS.md 将这一输入解释为创建或完善教学课程；无需粘贴旧对话。终端用户也可先进入仓库再运行 `codex`。
 
+同一工作流也已封装为通用 skill：`$paper-algorithm-tutorial I-JEPA`。安装目录为 `/Users/max/.agents/skills/paper-algorithm-tutorial`，完整维护/备份目录为 `/Users/max/codebase/research_plugins/Research_skills/paper-algorithm-tutorial`。其他项目可以显式调用 skill；它在其他项目使用当地结构和共享组件，不强制使用本仓库的 edu_core。当前文件保留为未安装 skill 时的本仓库入口。
+
 此行为依赖新 session 在本项目中读取根 AGENTS.md。[OpenAI 官方说明](https://learn.chatgpt.com/docs/agent-configuration/agents-md) 描述了 session 启动时从项目根到当前目录读取指令的规则。其他目录中的 session 不自动具有本仓库约定。规划模式先产出方案，执行模式可创建课程。
 
 ## 默认学习者与目标

@@ -6,7 +6,7 @@
 
 | Directory | 内容 |
 | --- | --- |
-| [`mllm/`](mllm/) | MAE、DINO + iBOT、I-JEPA、原始 V-JEPA、BLIP-2、InstructBLIP、LLaVA、Flamingo，以及 ACT embodied policy 的机制教学实现、TODO 关卡与 paper-recipe 配置合同。|
+| [`mllm/`](mllm/) | MAE、DINO + iBOT、DINOv2、DINOv3 Gram、I-JEPA、原始 V-JEPA、BLIP-2、InstructBLIP、LLaVA、Flamingo，以及 ACT、OpenVLA、Diffusion Policy、π0 的机制教程；包含可复用基础模型接口与真实小模型测试。|
 | [`generative_model/`](generative_model/) | AE、KL-VAE、VQ-VAE、VQGAN、DDPM、Flow Matching、VP-SDE Score Matching、扩散 Transformer 与 latent-diffusion 实验。|
 | [`general_utils/`](general_utils/) | `utils/`：生成模型的通用 2D/训练工具；`edu_core/`：token attention、ViT token、mask、EMA、batching 等跨教程基础组件。|
 
@@ -46,4 +46,8 @@ PYTHONPATH=general_utils/edu_core python3 mllm/llava/run_llava_demo.py --impleme
 
 每关先读 lesson 的推导、小例子和编号 TODO，卡住时再看对应 HINTS.md。默认参考 demo 可用来理解完整数据流；practice 模式才会运行你的填答，未完成会指出 TODO。
 
-维护者入口：`python3 mllm/check_tutorials.py --implementation reference` 检查七篇参考课程和 demo；[项目记忆](docs/project_memory.md) 记录教学决策、验证状态与学习进度模板。
+维护者入口：`python3 mllm/check_tutorials.py --implementation reference` 检查十二篇参考课程和 demo（Diffusion Policy 含两种网络）；[项目记忆](docs/project_memory.md) 记录教学决策、验证状态与学习进度模板。
+
+需要实际预训练模型时，先读 [基础模型接口小课](mllm/backbones/README.md)：默认离线toy不变，可显式下载SmolVLM-256M，再在π0、LLaVA、OpenVLA中复用同一份权重。模型文件保存在Hugging Face缓存，不进入Git。
+
+视觉自监督递进课程：[DINO+iBOT](mllm/dino/README.md) → [DINOv2六关](mllm/dinov2/README.md) → [DINOv3 Gram anchoring五关](mllm/dinov3/README.md)。包含独立练习、语义验收、CPU训练和特征关系热图；完整论文规模训练另见各课recipe。

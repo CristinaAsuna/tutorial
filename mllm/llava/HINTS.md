@@ -58,7 +58,7 @@ visible=assistant_mask & attention_mask & (input_ids!=-200)。
 
 <details><summary>三级：伪代码</summary>
 
-没有显式角色 mask 时 arange(L)>=assistant_start；torch.where 返回 labels，不提前 shift。
+torch.where(可见位置, input_ids, IGNORE_INDEX) 返回 labels，不提前 shift。
 
 </details>
 
