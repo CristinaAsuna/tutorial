@@ -1,0 +1,15 @@
+{
+  "paper": "Diffusion Transformers with Representation Autoencoders",
+  "paper_version": "2510.11690v1",
+  "encoder": "DINOv2-B with registers",
+  "encoder_frozen": true,
+  "encoder_affine_layernorm": false,
+  "decoder_objectives": ["L1", "LPIPS", "GAN"],
+  "decoder_noise_distribution": "half_normal",
+  "reference_dim": 4096,
+  "time_direction": "data_0_noise_1",
+  "data_path": "data/imagenet",
+  "weights_path": "weights/rae",
+  "training_executed": false,
+  "paper_metrics_reproduced": false
+}

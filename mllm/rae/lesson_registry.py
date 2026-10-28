@@ -1,0 +1,2 @@
+"""关卡元数据，用于局部验收与practice接线。"""
+LESSONS = [('lesson1_encoding', ['normalize_tokens', 'tokens_to_grid', 'grid_to_tokens']), ('lesson2_decoder', ['decode_tokens']), ('lesson3_augmentation', ['augment_latent']), ('lesson4_reconstruction', ['reconstruction_loss', 'stage1_step']), ('lesson5_flow', ['shift_time', 'flow_pair', 'velocity_loss']), ('lesson6_ddt', ['ddt_forward']), ('lesson7_training', ['stage2_step']), ('lesson8_sampling', ['euler_sample', 'sample_images'])]

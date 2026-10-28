@@ -1,5 +1,17 @@
 # 教学设计与决策
 
+## 表征辅助生成课程（2026-10-28）
+
+按用户明确选择，在 mllm 下新增独立的 REPA 六关和 RAE 八关；生成课程的已有 DiT 学生文件不修改，两课不相互导入 reference。仅复用 edu_core 的 token attention、patchification、冻结与 EMA，不新增泛化框架。默认离线 CPU，不下载预训练编码器。
+
+学习路线明确区分 foundations（基础算法前置）和 backbones（真实模型组件选修）。基础第 1、3 关后可直接进入 REPA 或 RAE，两课内部提供连续 flow、速度目标、负步长 Euler 与条件 Transformer 的微任务，不要求先完成生成模型目录。每个 helper 提供目的、轴推导、手算和三级提示；工程初始化与批量外围由 scaffolding 提供。
+
+REPA 保留冻结干净 RGB 教师、独立生成 latent 路径、早期 hidden 的三层投影与 patch-wise 负余弦、联合 flow 训练和无教师采样。toy codec 不视作预训练 VAE，冻结随机教师不视作已训练语义编码器。RAE 保留无 affine 的逐 token LN、噪声增强解码、两个训练阶段、维度相关时间偏移及独立 noisy-latent 输入的宽 DDT head；窄主干提供逐 token AdaLN 条件，不用末尾 Linear 扩宽代替该路径。
+
+两课统一 t=0 数据、t=1 噪声，训练目标 noise-clean，Euler 从 1 到 0；不沿用现有 flow_matching 的相反时间记号。RAE 以原始 v1 为合同，噪声强度为半正态，参考维度为 4096；当前官方代码的均匀噪声强度与新增统计归一化能力需在来源表中区分。默认 decoder 仅用 L1，论文 LPIPS/GAN、真实 DINO/SD-VAE 权重和 FID 协议留 recipe，均不声称已运行。
+
+维护测试须拒绝常数假损失和错误目标、检查实际数值/非零梯度/参数更新，并在测试进程注入 TODO 检查 CLI，不要求学生文件始终未完成。零初始化层经过必要更新后再检查上游梯度。reference、替身 practice 接线、学生实际完成及真实数据指标分别记录。
+
 ## 目标
 
 2026-10-08 确定：统一改造 ACT、DINO、Flamingo、I-JEPA、InstructBLIP、LLaVA、V-JEPA，采用细步骤与分层提示。验收目标是学习者独立完成 CPU 机制实现，真实数据与论文指标训练保留后续路线。

@@ -6,14 +6,19 @@ import subprocess
 import sys
 
 
-DEMOS = {"dinov2": "run_dinov2_demo.py", "dinov3": "run_dinov3_demo.py", "act": "run_act_demo.py", "dino": "run_dinov2_demo.py",
+DEMOS = {"repa": "run_repa_demo.py", "rae": "run_rae_demo.py",
+         "dinov2": "run_dinov2_demo.py", "dinov3": "run_dinov3_demo.py", "act": "run_act_demo.py", "dino": "run_dinov2_demo.py",
          "pi0": "run_pi0_demo.py",
          "openvla": "run_openvla_demo.py", "diffusion_policy": "run_diffusion_policy_demo.py",
          "flamingo": "run_flamingo_demo.py", "ijepa": "run_ijepa_demo.py",
          "instructblip": "run_instructblip_demo.py", "llava": "run_llava_demo.py",
          "vjepa": "run_vjepa_demo.py"}
 
-WIRING = {"dinov2": ["-m", "pytest", "-q", "mllm/dinov2/tests"],
+PACKAGED = frozenset(("dinov2", "dinov3", "repa", "rae"))
+
+WIRING = {"repa": ["-m", "pytest", "-q", "mllm/repa/tests"],
+          "rae": ["-m", "pytest", "-q", "mllm/rae/tests"],
+          "dinov2": ["-m", "pytest", "-q", "mllm/dinov2/tests"],
           "dinov3": ["-m", "pytest", "-q", "mllm/dinov3/tests"], "act": ["check_wiring.py"], "flamingo": ["check_wiring.py"],
           "pi0": ["check_wiring.py"],
           "openvla": ["check_wiring.py"], "diffusion_policy": ["check_wiring.py"],
@@ -43,7 +48,7 @@ def main():
         for script in scripts:
             print(f"\n[{paper}/{script}] {args.implementation}", flush=True)
             extra = ["--backbone", "all"] if paper == "diffusion_policy" else []
-            packaged = paper in ("dinov2", "dinov3")
+            packaged = paper in PACKAGED
             command = ["-m", f"mllm.{paper}.{Path(script).stem}"] if packaged else [script]
             result = subprocess.run([sys.executable, *command, "--implementation", args.implementation, *extra],
                                     cwd=root.parent if packaged else root / paper, env=env, check=False)
@@ -51,7 +56,7 @@ def main():
         if args.checks in ("wiring", "all"):
             print(f"\n[{paper}/wiring] 测试替身验证接线，不完成练习", flush=True)
             result = subprocess.run([sys.executable, *WIRING[paper]],
-                                    cwd=root.parent if paper in ("dinov2", "dinov3") else root / paper,
+                                    cwd=root.parent if paper in PACKAGED else root / paper,
                                     env=env, check=False)
             results.append((paper, "wiring", result.returncode))
     failures = [item for item in results if item[2]]

@@ -12,6 +12,7 @@
 - `diffusion_policy/`：RSS 2023 条件动作扩散；CNN 时间 U-Net/FiLM 主线与完整 Transformer 扩展，共享 DDPM/DDIM、EMA 和滚动控制。
 - `pi0/`：原始 π0（2024）的双流 VLM/action expert、分块注意力、flow matching、Euler 和 prefix K/V 缓存；可选接入真实 SmolVLM 256M。
 - `backbones/`：[基础模型接口小课](backbones/README.md)，一次显式下载、按能力访问视觉/语言/KV；π0、LLaVA、OpenVLA 共用缓存与加载，默认 toy 仍离线。
+- `repa/`、`rae/`：表征辅助的生成建模。[REPA](repa/README.md) 将干净教师 patch 特征对齐到生成器早期 hidden；[RAE](rae/README.md) 训练表征解码器，再在其高维 latent 上训练宽 head 生成器。两者独立学习，不需要预训练下载。
 
 从仓库根目录安装共享基础包：
 
@@ -22,6 +23,8 @@ python3 -m pip install -e "general_utils/edu_core[dev]"
 `general_utils/utils` 继续服务扩散/生成模型。MLLM 使用 `general_utils/edu_core` 提供的 `edu_core` token 语义；其中 `TubeletEmbed`、3D position interpolation 与 EMA schedule 由 I-JEPA/V-JEPA 等教程共享，避免重复实现且不把空间 GroupNorm attention 或 `[-1,1]` 图像约定混入 token 序列训练。
 
 ## 学习路径
+
+先分清两个辅助目录：**foundations 教基础计算怎么实现；backbones 教现成模型怎么接入**。前者按需先学，后者在完成论文 toy 后选修；参考组件的实际实现位于 `general_utils/edu_core`，基础课填答不会自动替换该共享库。
 
 先完成 [基础课程](foundations/README.md) 的 1（像素切片）、3（attention）、4（mask）、6（EMA）。DINO 另需 5（位置插值），V-JEPA 另需 2（tubelet）。基础练一次，后续论文默认调用共享组件。
 
@@ -39,6 +42,10 @@ python3 -m pip install -e "general_utils/edu_core[dev]"
 |[OpenVLA](openvla/README.md)|LLaVA；动作单位与量化|分位数归一化、action tokenizer、双视觉融合、labels/shift、自回归动作|
 |[Diffusion Policy](diffusion_policy/README.md)|ACT 的 chunk 概念；高斯噪声；扩展另需 attention|轨迹窗口、动作扩散、FiLM/U-Net、DDPM/DDIM、EMA、滚动控制、Transformer masks|
 |[π0](pi0/README.md)|OpenVLA、Diffusion Policy、基础 attention/mask；可选基础模型接口小课|双流QKV、state/action分块、flow速度目标、端到端梯度、Euler与KV缓存|
+|[REPA](repa/README.md)|基础 1、3；EMA 可补基础 6；课程内补 flow/DiT|干净教师/带噪 latent、早期 hidden、负余弦、联合训练、无教师采样|
+|[RAE](rae/README.md)|基础 1、3；课程内补 flow/DDT，无须先完成 REPA|冻结表征编码器、噪声增强 decoder、维度时间偏移、宽 head、两阶段训练|
+
+表征辅助生成的路线：`foundations 1、3 → REPA 或 RAE 的课程内桥接 → practice 训练与采样 → 可选真实编码器/recipe`。REPA 提供额外训练监督；RAE 更换生成空间，默认没有 REPA loss。两课的冻结小编码器仅是机制 fixture，不等同于训练过的 DINO 表征。
 
 推荐先学 DINO 或 LLaVA，再沿各自方向扩展。动作策略可按 ACT → Diffusion Policy / OpenVLA → π0 学习：从连续 chunk、迭代去噪和离散 token 自回归，进入预训练VLM与逐层动作专家。MAE、BLIP-2 保留原学习文件与已有填答；其运行方式以各目录说明为准，不纳入十二篇 practice 接口的统一验收。
 
@@ -68,9 +75,12 @@ python3 mllm/check_tutorials.py --paper llava ijepa --implementation practice
 python3 mllm/check_tutorials.py --checks wiring
 python3 mllm/check_tutorials.py --paper openvla diffusion_policy --implementation reference
 python3 mllm/check_tutorials.py --paper pi0 --implementation reference
+python3 mllm/check_tutorials.py --paper repa rae --implementation reference
 ```
 
 入口沿用当前 Python，并为子进程配置仓库共享包路径。Diffusion Policy 自动检查 CNN 和 Transformer；单独课程入口可用 `--backbone cnn|transformer|all`。`--checks wiring` 在测试中注入替身检查练习接线，不会填写或证明练习完成；默认 `all` 包含局部检查、demo 和接线测试。入口不下载权重或数据；任何入口失败都会返回非零退出码。当前验证环境和范围见 [验证记录](../docs/validation.md)，课程设计与进度模板见 [项目记忆](../docs/project_memory.md)。
+
+REPA、RAE 使用包入口：`PYTHONPATH=general_utils/edu_core python3 -m mllm.repa.check_lessons --lesson 1`（RAE 将 `repa` 换成 `rae`）。demo 分别为 `mllm.repa.run_repa_demo`、`mllm.rae.run_rae_demo`，默认 reference，加 `--implementation practice` 才运行自己的完整填答。
 
 真实小模型单独测试，不混入默认离线验收；下载与运行命令见 [接口小课](backbones/README.md)，整仓库依赖和能力边界见 [基础模型审查](../docs/backbone_audit.md)。
 

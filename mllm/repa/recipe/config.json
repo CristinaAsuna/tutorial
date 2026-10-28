@@ -1,0 +1,16 @@
+{
+  "paper": "REPA (ICLR 2025)",
+  "paper_url": "https://arxiv.org/abs/2410.06940",
+  "official_repository": "https://github.com/sihyun-yu/REPA",
+  "data_path": "data/imagenet256",
+  "teacher": "DINOv2-B/14",
+  "codec": "stabilityai/sd-vae-ft-mse",
+  "alignment_weight": 0.5,
+  "alignment_objective": "negative_patch_cosine",
+  "alignment_depth": 4,
+  "model": "SiT-B/2",
+  "time_direction": "0=data,1=noise",
+  "prediction": "noise-minus-clean",
+  "training_executed": false,
+  "paper_metrics_reproduced": false
+}

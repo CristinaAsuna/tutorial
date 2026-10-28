@@ -1,5 +1,37 @@
 # 当前验证状态
 
+## 2026-10-28：REPA / RAE 教学闭环与回归
+
+环境：macOS CPU，`/Users/max/codebase/.ml/.venv/bin/python`，Python 3.11.15、PyTorch 2.13.0、pytest 9.1.1。系统 `/usr/bin/python3` 没有 torch；下列命令使用已确认的环境实例，课程代码不硬编码该路径。所有命令从仓库根目录执行，无模型或数据下载。
+
+|实际检查|结果|验收范围|
+|---|---|---|
+|REPA / RAE 专项 pytest|34 passed（13 + 21）|数值、错误假损失拒绝、冻结/更新、空间路由、宽 head、采样、替身接线、TODO/错误传播及诊断文件|
+|两课统一 reference 入口|6 个入口通过|REPA 六关、RAE 八关；各自 demo 和维护接线测试|
+|既有十二篇统一 reference 回归|36 个入口通过|局部检查、demo、接线；Diffusion Policy 含 CNN/Transformer。与新增两课合计十四篇、42 个入口，分批运行|
+|共享 edu_core|22 passed|基础组件和 backbone 合同回归；本轮未改共享实现|
+|REPA CPU demo|4 次训练更新及采样通过|最终 total=.68592727、velocity=.99958825、alignment=-.62732196；实际梯度/参数更新、冻结目标、EMA、无教师采样|
+|RAE CPU demo|stage1、stage2 各 5 次更新及采样通过|最终 L1=.6596、flow=1.5737；encoder/decoder 阶段边界、窄 base/独立宽路径/条件映射更新、EMA 与 shifted Euler|
+|原始 practice 第一关|两课均具体 TODO、exit 2|REPA clean_targets；RAE normalize_tokens；不是学生已完成填答|
+|两课 recipe|metadata 校验通过|data_exists=false，RAE weights_exist=false；training_executed 和 paper_metrics_reproduced 都为 false|
+|诊断与静态检查|通过|REPA JSON/SVG 解析；RAE JSON/三张 16×16 RGB 二进制 PPM 结构校验；compileall 与 git diff --check|
+
+```bash
+TUTORIAL_PY=/Users/max/codebase/.ml/.venv/bin/python
+PYTHONPATH=.:general_utils/edu_core "$TUTORIAL_PY" -m pytest -q mllm/repa/tests mllm/rae/tests
+PYTHONPATH=general_utils/edu_core "$TUTORIAL_PY" -m pytest -q general_utils/edu_core/tests
+"$TUTORIAL_PY" mllm/check_tutorials.py --paper repa rae --implementation reference
+"$TUTORIAL_PY" mllm/check_tutorials.py --paper dinov2 dinov3 act dino pi0 openvla diffusion_policy flamingo ijepa instructblip llava vjepa --implementation reference
+PYTHONPATH=general_utils/edu_core "$TUTORIAL_PY" -m mllm.repa.run_repa_demo --output-dir /tmp/repa-final-diagnostics-20261028
+PYTHONPATH=general_utils/edu_core "$TUTORIAL_PY" -m mllm.rae.run_rae_demo --output-dir /tmp/rae-final-diagnostics-20261028
+"$TUTORIAL_PY" -m mllm.repa.recipe.validate_config
+"$TUTORIAL_PY" -m mllm.rae.recipe.validate_config
+"$TUTORIAL_PY" -m compileall -q mllm/repa mllm/rae mllm/check_tutorials.py
+git diff --check
+```
+
+两课使用冻结随机 fixture 和合成图案，只证明机制与训练/采样路由。REPA codec 不是预训练 VAE，teacher 不是预训练 DINO；RAE stage1 只用 L1，没有论文 LPIPS/GAN。没有真实 ImageNet 训练、预训练权重接入、FID、论文加速或语义效果验证。参考与测试替身通过不代表学习者已填写练习。旧课程 MAE、BLIP-2、foundations 和预训练小模型未在本轮重跑，历史结果保留原日期。
+
 ## 2026-10-17：DINO系列实现与回归
 
 本次使用macOS CPU、`/Users/max/codebase/.ml/.venv/bin/python`（Python 3.11、PyTorch 2.13.0），新增DINOv2六关和DINOv3 Gram五关，修正DINO温度、逐样本面积裁剪、共享encoder与语义检查。未运行真实数据或预训练模型测试；这些历史证据保留原日期。

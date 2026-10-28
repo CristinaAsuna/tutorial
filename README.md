@@ -10,6 +10,8 @@
 | [`generative_model/`](generative_model/) | AE、KL-VAE、VQ-VAE、VQGAN、DDPM、Flow Matching、VP-SDE Score Matching、扩散 Transformer 与 latent-diffusion 实验。|
 | [`general_utils/`](general_utils/) | `utils/`：生成模型的通用 2D/训练工具；`edu_core/`：token attention、ViT token、mask、EMA、batching 等跨教程基础组件。|
 
+表征辅助的生成建模课程也按学习路线放在 `mllm/`：[REPA](mllm/repa/README.md) 学习用外部教师对齐生成器中间表示，[RAE](mllm/rae/README.md) 学习直接在表征编码器的 latent 空间生成。两课都提供从 flow 入门到训练/采样的离线 CPU 闭环。
+
 `mllm/` 顶层 reference/demo 是可验证的 CPU toy，用于理解论文数据流；每篇的 `recipe/` 记录真实数据、预训练权重、分布式训练和指标所需的条件。它们不是对论文结果的未经验证声明。
 
 ## Setup
@@ -36,6 +38,8 @@ python3 run_llava_demo.py
 
 先读 [课程地图](mllm/README.md)。基础不熟可以从 [foundations](mllm/foundations/README.md) 的 patchify、attention、mask 和 EMA 开始；后续论文直接复用 `edu_core`，关键论文机制自己填写。
 
+`foundations` 是亲手实现基础算法的前置课；`backbones` 是取用现成预训练模型内部组件的后续选修。学习 REPA/RAE 时先做基础第 1、3 关，再进入各课自己的 flow/DiT 桥接，不必先下载权重或学完整个生成模型目录。
+
 从仓库根目录检查一关，然后在填完论文练习后运行自己的模型：
 
 ```bash
@@ -46,7 +50,7 @@ PYTHONPATH=general_utils/edu_core python3 mllm/llava/run_llava_demo.py --impleme
 
 每关先读 lesson 的推导、小例子和编号 TODO，卡住时再看对应 HINTS.md。默认参考 demo 可用来理解完整数据流；practice 模式才会运行你的填答，未完成会指出 TODO。
 
-维护者入口：`python3 mllm/check_tutorials.py --implementation reference` 检查十二篇参考课程和 demo（Diffusion Policy 含两种网络）；[项目记忆](docs/project_memory.md) 记录教学决策、验证状态与学习进度模板。
+维护者入口：`python3 mllm/check_tutorials.py --implementation reference` 检查十四篇参考课程和 demo（Diffusion Policy 含两种网络）；[项目记忆](docs/project_memory.md) 记录教学决策、验证状态与学习进度模板。
 
 需要实际预训练模型时，先读 [基础模型接口小课](mllm/backbones/README.md)：默认离线toy不变，可显式下载SmolVLM-256M，再在π0、LLaVA、OpenVLA中复用同一份权重。模型文件保存在Hugging Face缓存，不进入Git。
 
